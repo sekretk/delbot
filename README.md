@@ -1,3 +1,1 @@
 # delbot
-
-delete me
