@@ -10,3 +10,5 @@ alwaysApply: true
 - We are working with GitHub as our version control platform
 - Use GitHub workflows for CI/CD automation
 - Follow GitHub best practices for pull requests and issue management
+- Dependabot is configured for automated dependency updates
+- Review and merge Dependabot PRs regularly to keep dependencies current
