@@ -1,17 +1,9 @@
 # Multi-stage build for NestJS Backend
-FROM node:20-alpine AS builder
+FROM node:20 AS builder
 WORKDIR /app
 
-# Install system dependencies
-RUN apk add --no-cache libc6-compat python3 make g++
-
-# Copy all necessary files for build
-COPY package*.json ./
-COPY nx.json ./
-COPY tsconfig*.json ./
-COPY jest*.js ./
-COPY .nx/ ./.nx/
-COPY backend/ ./backend/
+# TODO: Copy all necessary files for build
+COPY . .
 
 # Install dependencies
 RUN npm install
