@@ -1,0 +1,12 @@
+---
+description: CI/CD and GitHub workflows guidelines
+globs: 
+alwaysApply: true
+---
+
+# CI/CD Rules
+
+## GitHub Integration
+- We are working with GitHub as our version control platform
+- Use GitHub workflows for CI/CD automation
+- Follow GitHub best practices for pull requests and issue management

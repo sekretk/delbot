@@ -1,0 +1,36 @@
+name: Pull Request Checks
+
+on:
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  pr-checks:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Echo PR information
+        run: |
+          echo "🔍 Running pull request checks..."
+          echo "PR Number: ${{ github.event.number }}"
+          echo "PR Title: ${{ github.event.pull_request.title }}"
+          echo "Author: ${{ github.event.pull_request.user.login }}"
+          
+      - name: Run basic validation
+        run: |
+          echo "✅ Starting validation checks..."
+          echo "📝 Checking for README file..."
+          if [ -f README.md ]; then
+            echo "✅ README.md found"
+          else
+            echo "❌ README.md not found"
+            exit 1
+          fi
+          
+      - name: Final check
+        run: |
+          echo "🎉 All pull request checks completed successfully!"
+          echo "✅ Ready for review"
