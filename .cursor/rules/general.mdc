@@ -1,0 +1,10 @@
+---
+description: General development guidelines and restrictions
+globs: 
+alwaysApply: true
+---
+
+# General Rules
+
+## Git Commands
+- Do not use any git commands in prompt results
