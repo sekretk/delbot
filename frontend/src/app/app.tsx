@@ -1,6 +1,7 @@
 // Uncomment this line to use CSS modules
 // import styles from './app.module.css';
 import NxWelcome from './nx-welcome';
+import { VERSION_INFO, getVersionString } from '../version';
 
 import { Route, Routes, Link } from 'react-router-dom';
 
@@ -30,7 +31,23 @@ export function App() {
           path="/"
           element={
             <div>
-              This is the generated root route.{' '}
+              <h2>🤖 DelBot - Robot Delivery Service</h2>
+              <p>Welcome to the DelBot UI + BFF service for robot delivery!</p>
+              
+              <div style={{
+                background: '#f8f9fa',
+                border: '1px solid #e9ecef',
+                borderRadius: '8px',
+                padding: '16px',
+                margin: '20px 0',
+                fontFamily: 'monospace'
+              }}>
+                <h3 style={{ margin: '0 0 12px 0', fontSize: '16px' }}>🏷️ Version Information</h3>
+                <div><strong>Version:</strong> {getVersionString()}</div>
+                <div><strong>Release Date:</strong> {VERSION_INFO.releaseDate}</div>
+                <div><strong>Environment:</strong> {VERSION_INFO.environment}</div>
+              </div>
+              
               <Link to="/page-2">Click here for page 2.</Link>
             </div>
           }
