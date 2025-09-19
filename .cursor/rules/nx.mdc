@@ -1,0 +1,13 @@
+---
+description: NX monorepo development guidelines and best practices
+globs: 
+alwaysApply: true
+---
+
+# NX Rules
+
+## Development Environment
+- We are working with NX monorepo structure
+- Use NX CLI commands for project management and builds
+- Follow NX best practices for workspace organization
+- Leverage NX generators for consistent project scaffolding
