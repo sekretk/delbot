@@ -1,5 +1,5 @@
 # Multi-stage build for React Frontend
-FROM node:20-alpine AS builder
+FROM node:24-alpine AS builder
 WORKDIR /app
 
 # TODO Copy package files and install dependencies
