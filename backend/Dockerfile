@@ -13,8 +13,8 @@ COPY jest*.js ./
 COPY .nx/ ./.nx/
 COPY backend/ ./backend/
 
-# Use existing node_modules from host to avoid hanging installs
-COPY node_modules/ ./node_modules/
+# Install dependencies
+RUN npm install
 
 # Build the backend application directly
 RUN npx nx build backend --prod
