@@ -1,0 +1,74 @@
+# Dependencies
+node_modules
+npm-debug.log
+yarn-error.log
+yarn.lock
+package-lock.json
+
+# Build outputs
+dist
+build
+.nx/cache
+.nx/workspace-data
+
+# Development files
+.env
+.env.local
+.env.development
+.env.test
+.env.production
+
+# IDE and editor files
+.vscode
+.idea
+*.swp
+*.swo
+*~
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Git
+.git
+.gitignore
+
+# Docker files
+Dockerfile*
+docker-compose*
+.dockerignore
+
+# Documentation
+README.md
+*.md
+
+# Testing
+coverage
+.nyc_output
+.coverage
+jest.config.*
+playwright.config.*
+
+# Logs
+logs
+*.log
+
+# Temporary files
+tmp
+temp
+.tmp
+
+# Cache directories
+.cache
+.parcel-cache
+
+# Linting
+.eslintcache
+
+# TypeScript
+*.tsbuildinfo
