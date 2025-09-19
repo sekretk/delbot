@@ -19,6 +19,9 @@ jobs:
           echo "PR Title: ${{ github.event.pull_request.title }}"
           echo "Author: ${{ github.event.pull_request.user.login }}"
           
+      - name: Setup Docker Buildx
+        uses: docker/setup-buildx-action@v3
+        
       - name: Run basic validation
         run: |
           echo "✅ Starting validation checks..."
@@ -30,7 +33,28 @@ jobs:
             exit 1
           fi
           
+      - name: Build Backend Docker Image
+        run: |
+          echo "🐳 Building backend Docker image..."
+          docker build -f backend/Dockerfile -t delbot-backend:pr-${{ github.event.number }} .
+          echo "✅ Backend Docker image built successfully"
+          
+      - name: Build Frontend Docker Image
+        run: |
+          echo "🐳 Building frontend Docker image..."
+          docker build -f frontend/Dockerfile -t delbot-frontend:pr-${{ github.event.number }} .
+          echo "✅ Frontend Docker image built successfully"
+          
+      - name: Docker Images Info
+        run: |
+          echo "📋 Docker images created:"
+          docker images | grep delbot
+          echo "🔍 Image sizes:"
+          docker images --format "table {{.Repository}}\t{{.Tag}}\t{{.Size}}" | grep delbot
+          
       - name: Final check
         run: |
           echo "🎉 All pull request checks completed successfully!"
+          echo "✅ Code builds successfully"
+          echo "✅ Docker images build successfully"
           echo "✅ Ready for review"
