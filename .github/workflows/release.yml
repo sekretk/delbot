@@ -1,0 +1,156 @@
+name: Release Pipeline
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'  # Triggers on version tags like v1.0.0, v2.1.3, etc.
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME_BACKEND: ${{ github.repository }}/backend
+  IMAGE_NAME_FRONTEND: ${{ github.repository }}/frontend
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Extract version and date
+        id: version-info
+        run: |
+          # Extract version from tag (remove 'v' prefix)
+          VERSION=${GITHUB_REF#refs/tags/v}
+          RELEASE_DATE=$(date -u +"%Y-%m-%d")
+          
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "release-date=$RELEASE_DATE" >> $GITHUB_OUTPUT
+          
+          echo "📦 Extracted Version: $VERSION"
+          echo "📅 Release Date: $RELEASE_DATE"
+          
+      - name: Update version.ts file
+        run: |
+          echo "🔄 Updating version.ts with release information..."
+          
+          cat > frontend/src/version.ts << EOF
+          export const VERSION_INFO = {
+            version: '${{ steps.version-info.outputs.version }}',
+            releaseDate: '${{ steps.version-info.outputs.release-date }}',
+            environment: 'production'
+          } as const;
+          
+          export const getVersionString = () => \`v\${VERSION_INFO.version}\`;
+          export const getReleaseDate = () => VERSION_INFO.releaseDate;
+          export const getEnvironment = () => VERSION_INFO.environment;
+          EOF
+          
+          echo "✅ Updated version.ts:"
+          cat frontend/src/version.ts
+          
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          
+      - name: Install dependencies
+        run: |
+          echo "📦 Installing dependencies..."
+          npm ci
+          
+      - name: Setup Docker Buildx
+        uses: docker/setup-buildx-action@v3
+        
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+          
+      - name: Build and push backend Docker image
+        run: |
+          echo "🐳 Building and pushing backend Docker image..."
+          
+          # Build backend image with version tag
+          docker build -f backend/Dockerfile -t ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_BACKEND }}:${{ steps.version-info.outputs.version }} .
+          
+          # Tag as latest
+          docker tag ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_BACKEND }}:${{ steps.version-info.outputs.version }} ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_BACKEND }}:latest
+          
+          # Push both tags
+          docker push ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_BACKEND }}:${{ steps.version-info.outputs.version }}
+          docker push ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_BACKEND }}:latest
+          
+          echo "✅ Backend image pushed successfully!"
+          
+      - name: Build and push frontend Docker image  
+        run: |
+          echo "🐳 Building and pushing frontend Docker image..."
+          
+          # Build frontend image with version tag
+          docker build -f frontend/Dockerfile -t ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_FRONTEND }}:${{ steps.version-info.outputs.version }} .
+          
+          # Tag as latest
+          docker tag ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_FRONTEND }}:${{ steps.version-info.outputs.version }} ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_FRONTEND }}:latest
+          
+          # Push both tags
+          docker push ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_FRONTEND }}:${{ steps.version-info.outputs.version }}
+          docker push ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_FRONTEND }}:latest
+          
+          echo "✅ Frontend image pushed successfully!"
+          
+      - name: Show published images
+        run: |
+          echo "📋 Published Docker images:"
+          echo "Backend:"
+          echo "  - ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_BACKEND }}:${{ steps.version-info.outputs.version }}"
+          echo "  - ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_BACKEND }}:latest"
+          echo "Frontend:"
+          echo "  - ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_FRONTEND }}:${{ steps.version-info.outputs.version }}"
+          echo "  - ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_FRONTEND }}:latest"
+          
+      - name: Create release summary
+        run: |
+          echo "🎉 **Release ${{ steps.version-info.outputs.version }} Complete!**" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 📋 Release Details" >> $GITHUB_STEP_SUMMARY
+          echo "- **Version:** ${{ steps.version-info.outputs.version }}" >> $GITHUB_STEP_SUMMARY  
+          echo "- **Date:** ${{ steps.version-info.outputs.release-date }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Git SHA:** ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Environment:** production" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### ✅ Completed Tasks" >> $GITHUB_STEP_SUMMARY
+          echo "- [x] Extracted version from tag" >> $GITHUB_STEP_SUMMARY
+          echo "- [x] Updated version.ts file" >> $GITHUB_STEP_SUMMARY
+          echo "- [x] Built and pushed backend Docker image" >> $GITHUB_STEP_SUMMARY
+          echo "- [x] Built and pushed frontend Docker image" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 🐳 Docker Images Published" >> $GITHUB_STEP_SUMMARY
+          echo "**Backend:**" >> $GITHUB_STEP_SUMMARY
+          echo "- [\`${{ env.REGISTRY }}/${{ env.IMAGE_NAME_BACKEND }}:${{ steps.version-info.outputs.version }}\`](https://github.com/${{ github.repository }}/pkgs/container/backend)" >> $GITHUB_STEP_SUMMARY
+          echo "- [\`${{ env.REGISTRY }}/${{ env.IMAGE_NAME_BACKEND }}:latest\`](https://github.com/${{ github.repository }}/pkgs/container/backend)" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Frontend:**" >> $GITHUB_STEP_SUMMARY
+          echo "- [\`${{ env.REGISTRY }}/${{ env.IMAGE_NAME_FRONTEND }}:${{ steps.version-info.outputs.version }}\`](https://github.com/${{ github.repository }}/pkgs/container/frontend)" >> $GITHUB_STEP_SUMMARY
+          echo "- [\`${{ env.REGISTRY }}/${{ env.IMAGE_NAME_FRONTEND }}:latest\`](https://github.com/${{ github.repository }}/pkgs/container/frontend)" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 🚀 Quick Start" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`bash" >> $GITHUB_STEP_SUMMARY
+          echo "# Pull and run the latest images" >> $GITHUB_STEP_SUMMARY
+          echo "docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_BACKEND }}:${{ steps.version-info.outputs.version }}" >> $GITHUB_STEP_SUMMARY  
+          echo "docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_FRONTEND }}:${{ steps.version-info.outputs.version }}" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          
+      - name: Display version file
+        run: |
+          echo "📄 Final version.ts content:"
+          echo "================================"
+          cat frontend/src/version.ts
+          echo "================================"
