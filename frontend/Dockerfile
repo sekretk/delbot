@@ -2,16 +2,9 @@
 FROM node:20-alpine AS builder
 WORKDIR /app
 
-# Copy package files and install dependencies
-COPY package*.json ./
-COPY nx.json ./
-COPY tsconfig*.json ./
-COPY jest*.js ./
-RUN npm ci
-
-# Copy source code
-COPY frontend/ ./frontend/
-COPY .nx/ ./.nx/
+# TODO Copy package files and install dependencies
+COPY . .
+RUN npm i
 
 # Build the frontend application
 RUN npx nx build frontend --prod
