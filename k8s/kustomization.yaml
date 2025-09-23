@@ -20,10 +20,10 @@ labels:
   - includeSelectors: true
     pairs:
       app: delbot
-      version: "1.0"
+      version: "0.0.2"
 
 images:
   - name: ghcr.io/sekretk/delbot/backend
-    newTag: latest
+    newTag: 0.0.2
   - name: ghcr.io/sekretk/delbot/frontend
-    newTag: latest
+    newTag: 0.0.2

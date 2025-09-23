@@ -75,8 +75,14 @@ fi
 echo ""
 echo "🚀 Deploying DelBot to Kubernetes..."
 
-# Apply the manifests
-kubectl apply -k .
+# Apply the manifests with version override if provided
+if [ ! -z "$DELBOT_VERSION" ]; then
+  echo "🏷️ Deploying DelBot version: $DELBOT_VERSION"
+  kubectl kustomize . | sed "s/newTag: [0-9]\+\.[0-9]\+\.[0-9]\+/newTag: $DELBOT_VERSION/g" | kubectl apply -f -
+else
+  echo "📦 Deploying DelBot with default version tags"
+  kubectl apply -k .
+fi
 
 echo ""
 echo -e "${GREEN}✅ DelBot deployed successfully!${NC}"
