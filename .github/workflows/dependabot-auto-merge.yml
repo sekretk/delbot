@@ -39,7 +39,7 @@ jobs:
     
     steps:
       - name: Comment with Dependabot commands
-        uses: actions/github-script@v7
+        uses: actions/github-script@v8
         with:
           script: |
             // Only add comment if it's the first time the PR is opened
