@@ -1,0 +1,68 @@
+name: Dependabot Auto-merge
+
+on:
+  pull_request:
+    types: [opened, synchronize]
+
+jobs:
+  auto-update-pr:
+    runs-on: ubuntu-latest
+    # Only run on Dependabot PRs
+    if: github.actor == 'dependabot[bot]'
+    permissions:
+      contents: write
+      pull-requests: write
+      
+    steps:
+      - name: Enable auto-merge for Dependabot PRs
+        run: |
+          echo "🔄 Auto-merge configuration for Dependabot PR #${{ github.event.number }}"
+          
+          # Enable auto-merge for minor and patch updates
+          if [[ "${{ github.event.pull_request.title }}" =~ (chore\(deps\)|ci\(deps\)|docker\(deps\)) ]]; then
+            echo "✅ This is a dependency update PR - enabling auto-merge"
+            
+            # Check if it's a minor or patch update (not major)
+            if [[ ! "${{ github.event.pull_request.title }}" =~ "BREAKING CHANGE" ]]; then
+              echo "📝 PR appears to be a minor/patch update - safe for auto-merge"
+              gh pr merge --auto --squash "${{ github.event.number }}"
+            else
+              echo "⚠️ Major version detected - manual review required"
+            fi
+          fi
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          
+  dependabot-commands:
+    runs-on: ubuntu-latest
+    if: github.actor == 'dependabot[bot]'
+    
+    steps:
+      - name: Comment with Dependabot commands
+        uses: actions/github-script@v7
+        with:
+          script: |
+            // Only add comment if it's the first time the PR is opened
+            if (context.payload.action === 'opened') {
+              await github.rest.issues.createComment({
+                issue_number: context.issue.number,
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                body: `## 🤖 Dependabot Commands
+                
+                You can trigger Dependabot actions by commenting on this PR:
+                
+                - \`@dependabot rebase\` - Rebase this PR
+                - \`@dependabot recreate\` - Recreate this PR, overwriting any edits
+                - \`@dependabot merge\` - Merge this PR after your CI passes
+                - \`@dependabot squash and merge\` - Squash and merge this PR after your CI passes
+                - \`@dependabot cancel merge\` - Cancel a previously requested merge
+                - \`@dependabot reopen\` - Reopen this PR if it is closed
+                - \`@dependabot close\` - Close this PR and stop Dependabot recreating it
+                - \`@dependabot ignore this dependency\` - Close this PR and stop Dependabot creating PRs for this dependency
+                - \`@dependabot ignore this major version\` - Close this PR and stop Dependabot creating PRs for this major version
+                - \`@dependabot ignore this minor version\` - Close this PR and stop Dependabot creating PRs for this minor version
+                
+                🔄 **Auto-rebase is enabled** - Dependabot will automatically keep this PR up to date with the base branch.`
+              });
+            }
