@@ -49,9 +49,25 @@ Edit `k8s/cert-manager-issuer.yaml` and replace `your-email@example.com` with yo
 
 ### 4. Deploy DelBot
 
+**Option A: Deploy Default Version (0.0.2)**
 ```bash
-# Deploy using kustomize
+# Deploy with default version tags
 kubectl apply -k k8s/
+```
+
+**Option B: Deploy Specific Version** ⭐ (Recommended)
+```bash
+# Deploy specific version
+cd k8s && ./deploy-version.sh 0.0.3
+
+# Or deploy latest
+cd k8s && ./deploy-version.sh latest
+```
+
+**Option C: Override Version with Environment Variable**
+```bash
+# Deploy with version override
+DELBOT_VERSION=0.0.3 ./k8s/deploy.sh
 ```
 
 ### 5. Verify Deployment
@@ -134,15 +150,34 @@ curl https://delbot.boysthings.top/
 
 ## 🔄 Updates
 
-To update to a new version:
+**Method 1: Deploy Specific Version** ⭐ (Recommended)
+```bash
+# Deploy new version
+cd k8s && ./deploy-version.sh 0.0.3
 
+# Check rollout status
+kubectl rollout status deployment/delbot-backend -n delbot
+kubectl rollout status deployment/delbot-frontend -n delbot
+```
+
+**Method 2: Update Default Version**
 ```bash
 # Update image tags in kustomization.yaml, then:
 kubectl apply -k k8s/
+```
 
-# Or force restart with latest images:
+**Method 3: Force Restart with Latest**
+```bash
+# Force pull latest images and restart
 kubectl rollout restart deployment/delbot-backend -n delbot
 kubectl rollout restart deployment/delbot-frontend -n delbot
+```
+
+**Check Current Versions:**
+```bash
+# View current image versions
+kubectl get deployment delbot-backend -n delbot -o jsonpath='{.spec.template.spec.containers[0].image}'
+kubectl get deployment delbot-frontend -n delbot -o jsonpath='{.spec.template.spec.containers[0].image}'
 ```
 
 ## 🔒 Security Features
