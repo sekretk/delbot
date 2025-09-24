@@ -112,19 +112,25 @@ jobs:
           helm version
           
       - name: Setup Kubernetes cluster access
-        if: ${{ secrets.KUBE_CONFIG != '' }}
+        env:
+          KUBE_CONFIG: ${{ secrets.KUBE_CONFIG }}
         run: |
-          echo "🔧 Setting up Kubernetes cluster access..."
-          mkdir -p ~/.kube
-          echo "${{ secrets.KUBE_CONFIG }}" | base64 -d > ~/.kube/config
-          chmod 600 ~/.kube/config
-          
-          # Test cluster connectivity
-          if kubectl cluster-info > /dev/null 2>&1; then
-            echo "✅ Successfully connected to Kubernetes cluster"
-            echo "KUBE_ACCESS=true" >> $GITHUB_ENV
+          if [ -n "$KUBE_CONFIG" ]; then
+            echo "🔧 Setting up Kubernetes cluster access..."
+            mkdir -p ~/.kube
+            echo "$KUBE_CONFIG" | base64 -d > ~/.kube/config
+            chmod 600 ~/.kube/config
+            
+            # Test cluster connectivity
+            if kubectl cluster-info > /dev/null 2>&1; then
+              echo "✅ Successfully connected to Kubernetes cluster"
+              echo "KUBE_ACCESS=true" >> $GITHUB_ENV
+            else
+              echo "❌ Failed to connect to Kubernetes cluster"
+              echo "KUBE_ACCESS=false" >> $GITHUB_ENV
+            fi
           else
-            echo "❌ Failed to connect to Kubernetes cluster"
+            echo "⚠️ KUBE_CONFIG secret not configured - skipping cluster setup"
             echo "KUBE_ACCESS=false" >> $GITHUB_ENV
           fi
           
