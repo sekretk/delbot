@@ -1,0 +1,46 @@
+---
+description: Release management guidelines and process
+globs: 
+alwaysApply: true
+---
+
+# Release Rules
+
+## Release Process
+- We use semantic versioning (e.g., v0.0.3, v1.0.0, v2.1.4)
+- Releases are triggered by creating Git tags with 'v' prefix
+- Release pipeline automatically builds and publishes Docker images to GitHub Container Registry (GHCR)
+- Version information is automatically updated in frontend during release
+
+## How to Create a Release
+1. **Commit all changes** to main branch
+2. **Create and push a tag** with version format:
+   ```bash
+   git tag v0.0.3
+   git push origin v0.0.3
+   ```
+3. **Release pipeline automatically**:
+   - Extracts version from tag (removes 'v' prefix)
+   - Updates `frontend/src/version.ts` with production version
+   - Builds Docker images for both backend and frontend
+   - Pushes images to GHCR with version tag and 'latest' tag
+   - Creates release summary with Docker image links
+
+## Version Management
+- Local development uses 'X.X.X-local' version format
+- Production releases use semantic versioning without 'v' prefix in version.ts
+- Docker images are tagged with both specific version and 'latest'
+- Kubernetes deployments should reference specific version tags, not 'latest'
+
+## Docker Images Location
+- Backend: `ghcr.io/sekretk/delbot/backend:v0.0.3`
+- Frontend: `ghcr.io/sekretk/delbot/frontend:v0.0.3`
+- Repository is public, no authentication required for pulling images
+
+## Deployment After Release
+1. Wait for release pipeline to complete
+2. Deploy using version-specific deployment:
+   ```bash
+   cd k8s && ./deploy-version.sh 0.0.3
+   ```
+3. Verify deployment and version display on frontend

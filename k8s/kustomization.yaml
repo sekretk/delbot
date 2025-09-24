@@ -13,17 +13,15 @@ resources:
   - frontend-deployment.yaml
   - frontend-service.yaml
   - ingress.yaml
-  - cert-manager-issuer.yaml
-  - image-pull-secret.yaml
 
 labels:
   - includeSelectors: true
     pairs:
       app: delbot
-      version: "0.0.2"
+      version: "0.0.3"
 
 images:
   - name: ghcr.io/sekretk/delbot/backend
-    newTag: 0.0.2
+    newTag: 0.0.3
   - name: ghcr.io/sekretk/delbot/frontend
-    newTag: 0.0.2
+    newTag: 0.0.3
