@@ -36,14 +36,23 @@ cat ~/.kube/config | base64
 
 Copy the entire base64 string (it will be very long).
 
-### 3. Add GitHub Secret
+### 3. Add GitHub Secrets
 
+**For Kubernetes Deployment:**
 1. Go to your repository on GitHub
 2. Navigate to **Settings** → **Secrets and variables** → **Actions**
 3. Click **New repository secret**
 4. Name: `KUBE_CONFIG`
 5. Value: Paste the base64-encoded kubeconfig
 6. Click **Add secret**
+
+**For Telegram Notifications (Optional):**
+7. Create a Telegram bot with [@BotFather](https://t.me/botfather)
+8. Get the bot token (format: `123456:ABC-DEF1234ghIkl-zyx57W2v1u123ew11`)
+9. Add your bot to your group/channel and get the chat ID (format: `-1001234567890`)
+10. Add these secrets:
+    - Name: `DELBOT_TOKEN`, Value: Your bot token
+    - Name: `DELBOT_WORKGROUP_CHANNEL`, Value: Your chat ID
 
 ### 4. Test the Setup
 
@@ -71,7 +80,8 @@ When you create a release tag (e.g., `v0.0.4`), the release pipeline will:
      --set commonLabels.version=0.0.4
    ```
 6. ✅ **Wait** for all pods to be ready
-7. ✅ **Report** deployment status in the release summary
+7. ✅ **Send** Telegram notification with release details
+8. ✅ **Report** deployment status in the release summary
 
 ## Release Summary
 
@@ -81,6 +91,12 @@ After successful deployment, you'll see:
 - 📊 **Kubernetes status commands**
 - 🐳 **Docker image links**
 - ✅ **Deployment confirmation**
+- 📱 **Telegram notification** (if configured) with:
+  - Release version and date
+  - Deployment status
+  - Live application links
+  - Docker image details
+  - GitHub release link
 
 ## Troubleshooting
 
