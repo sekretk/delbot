@@ -4,29 +4,25 @@ metadata:
   name: delbot-ingress
   annotations:
     # NGINX Ingress Controller
-    kubernetes.io/ingress.class: "nginx"
-    nginx.ingress.kubernetes.io/ssl-redirect: "true"
-    nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/ssl-redirect: "false"
+    # nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
     
-    # Let's Encrypt Certificate
-    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+    # SSL certificate temporarily disabled due to cluster ACME pathType restrictions
+    # cert-manager.io/cluster-issuer: "letsencrypt-fixed"
     
-    # Security headers
-    nginx.ingress.kubernetes.io/configuration-snippet: |
-      add_header X-Frame-Options "SAMEORIGIN" always;
-      add_header X-Content-Type-Options "nosniff" always;
-      add_header X-XSS-Protection "1; mode=block" always;
-      add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+    # Security headers are handled by cluster configuration
     
     # Rate limiting
     nginx.ingress.kubernetes.io/rate-limit: "100"
     nginx.ingress.kubernetes.io/rate-limit-window: "1m"
     
 spec:
-  tls:
-  - hosts:
-    - delbot.boysthings.top
-    secretName: delbot-tls-secret
+  ingressClassName: nginx
+  # TLS temporarily disabled - re-enable when cluster ACME issues are resolved
+  # tls:
+  # - hosts:
+  #   - delbot.boysthings.top
+  #   secretName: delbot-tls-secret
   rules:
   - host: delbot.boysthings.top
     http:

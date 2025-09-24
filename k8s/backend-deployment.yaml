@@ -44,7 +44,7 @@ spec:
           failureThreshold: 3
         readinessProbe:
           httpGet:
-            path: /health
+            path: /api/health
             port: 3000
           initialDelaySeconds: 5
           periodSeconds: 5
@@ -55,5 +55,3 @@ spec:
           runAsUser: 1001
           allowPrivilegeEscalation: false
           readOnlyRootFilesystem: true
-      imagePullSecrets:
-      - name: ghcr-secret
