@@ -24,8 +24,7 @@ jobs:
       - name: Extract version and date
         id: version-info
         run: |
-          # Extract version from tag (remove 'v' prefix)
-          VERSION=${GITHUB_REF#refs/tags/v}
+          VERSION=${GITHUB_REF#refs/tags/}
           RELEASE_DATE=$(date -u +"%Y-%m-%d")
           
           echo "version=$VERSION" >> $GITHUB_OUTPUT
