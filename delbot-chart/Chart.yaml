@@ -1,0 +1,19 @@
+apiVersion: v2
+name: delbot-chart
+description: DelBot - Robot Delivery Service UI + BFF
+
+# Application chart for DelBot deployment
+type: application
+
+# This is the chart version. Increment when making changes to the chart templates.
+version: 0.1.0
+
+# This is the version number of DelBot being deployed.
+appVersion: "0.0.3"
+
+home: https://github.com/sekretk/delbot
+sources:
+  - https://github.com/sekretk/delbot
+
+maintainers:
+  - name: sekretk

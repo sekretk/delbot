@@ -24,7 +24,9 @@ alwaysApply: true
    - Updates `frontend/src/version.ts` with production version
    - Builds Docker images for both backend and frontend
    - Pushes images to GHCR with version tag and 'latest' tag
-   - Creates release summary with Docker image links
+   - Installs kubectl and Helm
+   - Deploys to Kubernetes using Helm (if cluster access configured)
+   - Creates release summary with deployment status and links
 
 ## Version Management
 - Local development uses 'X.X.X-local' version format
@@ -37,10 +39,21 @@ alwaysApply: true
 - Frontend: `ghcr.io/sekretk/delbot/frontend:v0.0.3`
 - Repository is public, no authentication required for pulling images
 
-## Deployment After Release
+## Automated Deployment
+- If GitHub secret `KUBE_CONFIG` is configured, deployment happens automatically
+- Pipeline deploys using Helm with the released version
+- See `.github/CLUSTER_SETUP.md` for cluster configuration guide
+
+## Manual Deployment After Release
 1. Wait for release pipeline to complete
-2. Deploy using version-specific deployment:
+2. Deploy using Helm script:
    ```bash
-   cd k8s && ./deploy-version.sh 0.0.3
+   ./deploy.sh --version 0.0.3
    ```
-3. Verify deployment and version display on frontend
+3. Or deploy using Helm directly:
+   ```bash
+   helm upgrade --install delbot ./delbot-chart \
+     --set backend.image.tag=0.0.3 \
+     --set frontend.image.tag=0.0.3
+   ```
+4. Verify deployment and version display on frontend

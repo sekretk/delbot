@@ -95,6 +95,69 @@ jobs:
           
           echo "✅ Frontend image pushed successfully!"
           
+      - name: Install kubectl
+        run: |
+          echo "⚙️ Installing kubectl..."
+          curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
+          chmod +x kubectl
+          sudo mv kubectl /usr/local/bin/
+          echo "✅ kubectl installed successfully!"
+          kubectl version --client
+          
+      - name: Install Helm
+        run: |
+          echo "⚙️ Installing Helm..."
+          curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
+          echo "✅ Helm installed successfully!"
+          helm version
+          
+      - name: Setup Kubernetes cluster access
+        if: ${{ secrets.KUBE_CONFIG != '' }}
+        run: |
+          echo "🔧 Setting up Kubernetes cluster access..."
+          mkdir -p ~/.kube
+          echo "${{ secrets.KUBE_CONFIG }}" | base64 -d > ~/.kube/config
+          chmod 600 ~/.kube/config
+          
+          # Test cluster connectivity
+          if kubectl cluster-info > /dev/null 2>&1; then
+            echo "✅ Successfully connected to Kubernetes cluster"
+            echo "KUBE_ACCESS=true" >> $GITHUB_ENV
+          else
+            echo "❌ Failed to connect to Kubernetes cluster"
+            echo "KUBE_ACCESS=false" >> $GITHUB_ENV
+          fi
+          
+      - name: Deploy to Kubernetes with Helm
+        if: env.KUBE_ACCESS == 'true'
+        run: |
+          echo "🚀 Deploying DelBot version ${{ steps.version-info.outputs.version }} to Kubernetes..."
+          
+          # Deploy using Helm
+          helm upgrade --install delbot ./delbot-chart \
+            --set backend.image.tag=${{ steps.version-info.outputs.version }} \
+            --set frontend.image.tag=${{ steps.version-info.outputs.version }} \
+            --set commonLabels.version=${{ steps.version-info.outputs.version }} \
+            --wait --timeout=300s
+          
+          echo "✅ Deployment completed successfully!"
+          
+          # Wait for pods to be ready
+          echo "⏳ Waiting for all pods to be ready..."
+          kubectl wait --for=condition=available --timeout=300s deployment/delbot-backend -n delbot
+          kubectl wait --for=condition=available --timeout=300s deployment/delbot-frontend -n delbot
+          
+          echo "✅ All pods are ready!"
+          
+          # Show deployment status
+          echo "📊 Deployment Status:"
+          kubectl get pods -n delbot
+          
+          # Show running versions
+          echo "🏷️ Deployed Versions:"
+          echo "Backend: $(kubectl get deployment delbot-backend -n delbot -o jsonpath='{.spec.template.spec.containers[0].image}')"
+          echo "Frontend: $(kubectl get deployment delbot-frontend -n delbot -o jsonpath='{.spec.template.spec.containers[0].image}')"
+          
       - name: Show published images
         run: |
           echo "📋 Published Docker images:"
@@ -120,6 +183,12 @@ jobs:
           echo "- [x] Updated version.ts file" >> $GITHUB_STEP_SUMMARY
           echo "- [x] Built and pushed backend Docker image" >> $GITHUB_STEP_SUMMARY
           echo "- [x] Built and pushed frontend Docker image" >> $GITHUB_STEP_SUMMARY
+          echo "- [x] Installed kubectl and Helm" >> $GITHUB_STEP_SUMMARY
+          if [ "${{ env.KUBE_ACCESS }}" == "true" ]; then
+            echo "- [x] Deployed to Kubernetes cluster successfully" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "- [ ] Kubernetes deployment (cluster access not configured)" >> $GITHUB_STEP_SUMMARY
+          fi
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### 🐳 Docker Images Published" >> $GITHUB_STEP_SUMMARY
           echo "**Backend:**" >> $GITHUB_STEP_SUMMARY
@@ -130,12 +199,33 @@ jobs:
           echo "- [\`${{ env.REGISTRY }}/${{ env.IMAGE_NAME_FRONTEND }}:${{ steps.version-info.outputs.version }}\`](https://github.com/${{ github.repository }}/pkgs/container/frontend)" >> $GITHUB_STEP_SUMMARY
           echo "- [\`${{ env.REGISTRY }}/${{ env.IMAGE_NAME_FRONTEND }}:latest\`](https://github.com/${{ github.repository }}/pkgs/container/frontend)" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### 🚀 Quick Start" >> $GITHUB_STEP_SUMMARY
-          echo "\`\`\`bash" >> $GITHUB_STEP_SUMMARY
-          echo "# Pull and run the latest images" >> $GITHUB_STEP_SUMMARY
-          echo "docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_BACKEND }}:${{ steps.version-info.outputs.version }}" >> $GITHUB_STEP_SUMMARY  
-          echo "docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_FRONTEND }}:${{ steps.version-info.outputs.version }}" >> $GITHUB_STEP_SUMMARY
-          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          if [ "${{ env.KUBE_ACCESS }}" == "true" ]; then
+            echo "### 🚀 Live Application" >> $GITHUB_STEP_SUMMARY
+            echo "**DelBot ${{ steps.version-info.outputs.version }} is now live!**" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "- 🌐 **Frontend:** [http://delbot.boysthings.top/](http://delbot.boysthings.top/)" >> $GITHUB_STEP_SUMMARY
+            echo "- 🔧 **Backend API:** [http://delbot.boysthings.top/api/health](http://delbot.boysthings.top/api/health)" >> $GITHUB_STEP_SUMMARY
+            echo "- ❤️ **Health Check:** [http://delbot.boysthings.top/health](http://delbot.boysthings.top/health)" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "### 📊 Kubernetes Status" >> $GITHUB_STEP_SUMMARY
+            echo "\`\`\`bash" >> $GITHUB_STEP_SUMMARY
+            echo "# Check deployment status" >> $GITHUB_STEP_SUMMARY
+            echo "helm status delbot" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "# View pods" >> $GITHUB_STEP_SUMMARY
+            echo "kubectl get pods -n delbot" >> $GITHUB_STEP_SUMMARY
+            echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "### 🚀 Manual Deployment" >> $GITHUB_STEP_SUMMARY
+            echo "\`\`\`bash" >> $GITHUB_STEP_SUMMARY
+            echo "# Deploy manually using Helm" >> $GITHUB_STEP_SUMMARY
+            echo "./deploy.sh --version ${{ steps.version-info.outputs.version }}" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "# Or using Docker" >> $GITHUB_STEP_SUMMARY
+            echo "docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_BACKEND }}:${{ steps.version-info.outputs.version }}" >> $GITHUB_STEP_SUMMARY  
+            echo "docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_FRONTEND }}:${{ steps.version-info.outputs.version }}" >> $GITHUB_STEP_SUMMARY
+            echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          fi
           
       - name: Display version file
         run: |
