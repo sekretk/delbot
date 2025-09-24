@@ -194,6 +194,11 @@ jobs:
           else
             echo "- [ ] Kubernetes deployment (cluster access not configured)" >> $GITHUB_STEP_SUMMARY
           fi
+          if [ -n "${{ secrets.DELBOT_TOKEN }}" ] && [ -n "${{ secrets.DELBOT_WORKGROUP_CHANNEL }}" ]; then
+            echo "- [x] Telegram release notification sent" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "- [ ] Telegram notification (secrets not configured)" >> $GITHUB_STEP_SUMMARY
+          fi
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### 🐳 Docker Images Published" >> $GITHUB_STEP_SUMMARY
           echo "**Backend:**" >> $GITHUB_STEP_SUMMARY
@@ -230,6 +235,63 @@ jobs:
             echo "docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_BACKEND }}:${{ steps.version-info.outputs.version }}" >> $GITHUB_STEP_SUMMARY  
             echo "docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_FRONTEND }}:${{ steps.version-info.outputs.version }}" >> $GITHUB_STEP_SUMMARY
             echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          fi
+          
+      - name: Send Telegram Release Notification
+        env:
+          DELBOT_TOKEN: ${{ secrets.DELBOT_TOKEN }}
+          DELBOT_WORKGROUP_CHANNEL: ${{ secrets.DELBOT_WORKGROUP_CHANNEL }}
+        run: |
+          if [ -n "$DELBOT_TOKEN" ] && [ -n "$DELBOT_WORKGROUP_CHANNEL" ]; then
+            echo "📱 Sending Telegram release notification..."
+            
+            # Prepare deployment status message
+            if [ "${{ env.KUBE_ACCESS }}" == "true" ]; then
+              DEPLOY_STATUS="✅ *Automatically deployed to Kubernetes*"
+              APP_LINKS="
+              🌐 *Live Application:*
+              • [Frontend](http://delbot.boysthings.top/)
+              • [Backend API](http://delbot.boysthings.top/api/health)
+              • [Health Check](http://delbot.boysthings.top/health)"
+            else
+              DEPLOY_STATUS="📦 *Docker images published* (manual deployment required)"
+              APP_LINKS="
+              🚀 *Deploy manually:*
+              \`./deploy.sh --version ${{ steps.version-info.outputs.version }}\`"
+            fi
+            
+            # Create release message
+            MESSAGE="🤖 *DelBot Release ${{ steps.version-info.outputs.version }}* 🚀
+            
+            📅 *Date:* ${{ steps.version-info.outputs.release-date }}
+            🏷️ *Version:* ${{ steps.version-info.outputs.version }}
+            📝 *Commit:* [\`${GITHUB_SHA:0:7}\`](https://github.com/${{ github.repository }}/commit/${{ github.sha }})
+            
+            ${DEPLOY_STATUS}${APP_LINKS}
+            
+            🐳 *Docker Images Published:*
+            • \`ghcr.io/sekretk/delbot/backend:${{ steps.version-info.outputs.version }}\`
+            • \`ghcr.io/sekretk/delbot/frontend:${{ steps.version-info.outputs.version }}\`
+            
+            📋 *Release Details:*
+            [View on GitHub](https://github.com/${{ github.repository }}/releases/tag/${{ github.ref_name }})
+            
+            *Release pipeline completed successfully!* ✨"
+            
+            # Send notification
+            curl -s -X POST "https://api.telegram.org/bot${DELBOT_TOKEN}/sendMessage" \
+              -d chat_id="${DELBOT_WORKGROUP_CHANNEL}" \
+              -d parse_mode="Markdown" \
+              -d text="$MESSAGE" \
+              -d disable_web_page_preview="true"
+            
+            if [ $? -eq 0 ]; then
+              echo "✅ Telegram notification sent successfully!"
+            else
+              echo "❌ Failed to send Telegram notification"
+            fi
+          else
+            echo "⚠️ Telegram secrets not configured - skipping notification"
           fi
           
       - name: Display version file
