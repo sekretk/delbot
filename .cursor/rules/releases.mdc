@@ -35,8 +35,8 @@ alwaysApply: true
 - Kubernetes deployments should reference specific version tags, not 'latest'
 
 ## Docker Images Location
-- Backend: `ghcr.io/sekretk/delbot/backend:v0.0.3`
-- Frontend: `ghcr.io/sekretk/delbot/frontend:v0.0.3`
+- Backend: `ghcr.io/sekretk/delbot/backend:0.0.3`
+- Frontend: `ghcr.io/sekretk/delbot/frontend:0.0.3`
 - Repository is public, no authentication required for pulling images
 
 ## Automated Deployment
