@@ -1,0 +1,222 @@
+# TS-Rest Shared Library Rules & Context
+
+## 🎯 Project Context
+This project uses **ts-rest** for type-safe communication between NestJS backend and React frontend. All DTOs, API contracts, and shared types are maintained in the `libs/shared` NX library to ensure consistency and type safety across the monorepo.
+
+## 📁 Current Architecture Overview
+
+### Shared Library Structure (`libs/shared`)
+```
+libs/shared/src/
+├── lib/
+│   ├── dto/                    # Data Transfer Objects with Zod validation
+│   │   ├── app-data.dto.ts    # Application DTOs (AppDataDto, HealthResponseDto)
+│   │   └── index.ts
+│   ├── contracts/             # TS-Rest API contracts  
+│   │   ├── app.contract.ts    # Main API contract (getData, getHealth)
+│   │   └── index.ts
+│   └── shared.ts              # Additional shared utilities
+└── index.ts                   # Main exports (@delbot/shared)
+```
+
+### Backend Implementation (`backend/src`)
+```
+backend/src/
+├── main.ts                    # Swagger setup with ts-rest OpenAPI generation
+├── app/
+│   ├── app.controller.ts      # Uses @delbot/shared DTOs, Swagger decorators
+│   ├── app.service.ts         # Uses shared DTOs for return types
+│   └── app.module.ts
+```
+
+### Frontend Implementation (`frontend/src`)
+```
+frontend/src/
+├── api/client.ts              # TS-Rest client configuration
+└── app/components/ApiTest.tsx # Example component using shared types
+```
+
+## 🔧 Current Implementation Details
+
+### Dependencies Installed
+```json
+{
+  "@ts-rest/core": "^3.52.1",
+  "@ts-rest/nest": "^3.52.1", 
+  "@ts-rest/open-api": "^3.52.1",
+  "@ts-rest/react-query": "^3.52.1",
+  "@tanstack/react-query": "latest",
+  "zod": "latest"
+}
+```
+
+### Current API Endpoints
+1. **GET /api** - Returns application data (AppDataDto)
+2. **GET /api/health** - Health check with timestamp (HealthResponseDto)
+
+### Working Examples
+- **Backend**: Standard NestJS controllers with Swagger documentation
+- **Frontend**: ApiTest component on `/page-2` route demonstrates type-safe API calls
+- **Swagger**: Available at `http://localhost:3000/api/docs`
+- **Client**: Working ts-rest client with proper error handling
+
+## 📋 Mandatory Rules & Guidelines
+
+### 1. **ALWAYS Use Shared DTOs**
+- **NEVER** define DTOs directly in backend or frontend
+- **ALL** data structures must be defined in `libs/shared/src/lib/dto/`
+- Use Zod schemas for runtime validation AND TypeScript type inference
+- Export both schemas and inferred types
+
+```typescript
+// ✅ Correct DTO Definition
+export const UserSchema = z.object({
+  id: z.string().describe('User unique identifier'),
+  name: z.string().describe('User full name'),
+  email: z.string().email().describe('User email address'),
+});
+export type UserDto = z.infer<typeof UserSchema>;
+```
+
+### 2. **API Contract Definitions**
+- Define all contracts in `libs/shared/src/lib/contracts/`
+- Use proper ts-rest contract format with `c.type<>()` for responses
+- Include summary and description for OpenAPI documentation
+- Organize contracts by feature/domain (app.contract.ts, user.contract.ts, etc.)
+
+```typescript
+// ✅ Correct Contract Definition
+export const userContract = c.router({
+  getUser: {
+    method: 'GET',
+    path: '/users/:id',
+    responses: {
+      200: c.type<UserDto>(),
+      404: c.type<ErrorDto>(),
+    },
+    summary: 'Get user by ID',
+    description: 'Retrieves user information by unique identifier',
+  },
+});
+```
+
+### 3. **Backend Implementation Standards**
+- Import DTOs and contracts from `@delbot/shared` ONLY
+- Use standard NestJS decorators (maintain Swagger compatibility)
+- Return types must match shared DTOs exactly
+- Maintain OpenAPI documentation generation in `main.ts`
+
+```typescript
+// ✅ Correct Backend Usage
+import { UserDto } from '@delbot/shared';
+
+@Get(':id')
+@ApiOperation({ summary: 'Get user by ID' })
+getUser(@Param('id') id: string): UserDto {
+  return this.userService.findById(id);
+}
+```
+
+### 4. **Frontend Implementation Standards**
+- Import types from `@delbot/shared` for all API-related data
+- Use ts-rest client from `frontend/src/api/client.ts`
+- Maintain type safety throughout component tree
+- Handle errors with proper typing
+
+```typescript
+// ✅ Correct Frontend Usage
+import { UserDto } from '@delbot/shared';
+import { api } from '../api/client';
+
+const [user, setUser] = useState<UserDto | null>(null);
+const response = await api.getUser({ params: { id: '123' } });
+if (response.status === 200) {
+  setUser(response.body);
+}
+```
+
+### 5. **Development Workflow - CRITICAL STEPS**
+When adding new endpoints or modifying existing ones:
+
+1. **FIRST**: Define/update DTOs in `libs/shared/src/lib/dto/`
+2. **SECOND**: Update/create contracts in `libs/shared/src/lib/contracts/`
+3. **THIRD**: Build shared library: `nx build shared`
+4. **FOURTH**: Update backend controller/service
+5. **FIFTH**: Update frontend client/components
+6. **SIXTH**: Test both backend and frontend integration
+7. **SEVENTH**: Verify Swagger documentation is correct
+
+### 6. **Import Guidelines - ENFORCE STRICTLY**
+```typescript
+// ✅ ALWAYS Correct - Import from shared library
+import { AppDataDto, HealthResponseDto, appContract } from '@delbot/shared';
+
+// ❌ NEVER Allowed - Direct imports  
+import { AppDataDto } from '../dto/app-data.dto';
+import { appContract } from './contracts/app.contract';
+import { UserDto } from '../../libs/shared/src/lib/dto/user.dto';
+```
+
+### 7. **Error Handling Patterns**
+- Define error DTOs in shared library
+- Use consistent error response structure
+- Implement proper HTTP status codes
+- Provide meaningful error messages
+
+```typescript
+// ✅ Standard Error DTO
+export const ErrorSchema = z.object({
+  message: z.string(),
+  statusCode: z.number(),
+  timestamp: z.string(),
+});
+export type ErrorDto = z.infer<typeof ErrorSchema>;
+```
+
+## 🚀 Quick Reference for Common Tasks
+
+### Adding New API Endpoint
+```bash
+# 1. Add DTO in libs/shared/src/lib/dto/new-feature.dto.ts
+# 2. Add contract in libs/shared/src/lib/contracts/new-feature.contract.ts  
+# 3. Export in libs/shared/src/index.ts
+# 4. Build shared library
+nx build shared
+
+# 5. Add backend controller method
+# 6. Add frontend client usage
+# 7. Test endpoints
+```
+
+### Current Access Points
+- **Backend API**: `http://localhost:3000/api`
+- **Health Check**: `http://localhost:3000/api/health`
+- **Swagger UI**: `http://localhost:3000/api/docs`
+- **Frontend**: `http://localhost:4200`
+- **API Test Page**: `http://localhost:4200/page-2`
+
+### Build Commands
+```bash
+nx build shared        # Build shared library (required after changes)
+nx serve backend       # Start backend server
+nx serve frontend      # Start frontend server
+nx lint shared         # Verify shared library code quality
+```
+
+## 🎯 Context for AI Assistance
+
+When working on API-related features:
+1. **Always check** current shared library structure first
+2. **Verify** both backend and frontend implementations
+3. **Ensure** type consistency across all layers
+4. **Test** integration between frontend and backend
+5. **Update** this rule when adding new patterns
+6. **Maintain** Swagger documentation accuracy
+
+## 💡 Benefits & Principles
+- **End-to-End Type Safety**: TypeScript types flow from database to UI
+- **Single Source of Truth**: All data structures defined once
+- **Runtime Validation**: Zod schemas catch inconsistencies
+- **Maintainability**: Changes propagate automatically
+- **Developer Experience**: IntelliSense and compile-time errors
+- **Living Documentation**: Contracts serve as API documentation

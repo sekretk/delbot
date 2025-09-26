@@ -2,6 +2,7 @@
 // import styles from './app.module.css';
 import NxWelcome from './nx-welcome';
 import { VERSION_INFO, getVersionString } from '../version';
+import { ApiTest } from './components/ApiTest';
 
 import { Route, Routes, Link } from 'react-router-dom';
 
@@ -56,6 +57,8 @@ export function App() {
           path="/page-2"
           element={
             <div>
+              <ApiTest />
+              <br />
               <Link to="/">Click here to go back to root page.</Link>
             </div>
           }
