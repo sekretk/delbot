@@ -1,0 +1,206 @@
+# Code Quality & TypeScript Checking Rules
+
+## 🎯 Purpose
+Always run TypeScript checks AND ESLint fixes to maintain high code quality and catch errors early. This prevents expensive build failures and ensures consistent code style.
+
+## 🚀 Quick Quality Commands
+
+### Complete Quality Check (Recommended)
+```bash
+npm run quality-check
+```
+*Runs both type checking AND eslint fixes*
+
+### Type Check Only
+```bash
+npm run type-check
+```
+
+### ESLint Fix Only
+```bash
+npm run lint-fix
+```
+
+### Individual Project Commands
+```bash
+# Shared library (check/fix first - other projects depend on it)
+npm run type-check:shared
+npm run lint-fix:shared
+
+# Backend
+npm run type-check:backend
+npm run lint-fix:backend
+
+# Frontend
+npm run type-check:frontend
+npm run lint-fix:frontend
+```
+
+### Direct tsc Commands
+```bash
+# Shared library
+tsc --noEmit --project libs/shared/tsconfig.json
+
+# Backend  
+tsc --noEmit --project backend/tsconfig.app.json
+
+# Frontend
+tsc --noEmit --project frontend/tsconfig.app.json
+```
+
+## 📋 Mandatory Development Workflow
+
+### BEFORE Making Any Code Changes
+1. **ALWAYS** run `npm run quality-check` first
+2. Fix any existing issues before proceeding
+3. This ensures you start with a clean baseline
+
+### AFTER Making Code Changes
+1. **IMMEDIATELY** run `npm run quality-check`
+2. This will:
+   - Check TypeScript types
+   - Auto-fix ESLint issues
+   - Ensure consistent code style
+3. Only proceed to build (`nx build`) after quality check passes
+4. **NEVER** skip quality checking to "save time" - it costs more later
+
+### 🔥 CRITICAL: End-of-Session Rule
+**MANDATORY**: At the end of EVERY coding session, run:
+```bash
+npm run quality-check
+```
+This ensures all code is properly typed and linted before committing.
+
+### When Working with Shared Library
+1. **FIRST**: Quality check shared library: `npm run type-check:shared && npm run lint-fix:shared`
+2. **SECOND**: Build shared library: `nx build shared` 
+3. **THIRD**: Quality check dependent projects: `npm run quality-check`
+4. **FOURTH**: Build dependent projects if needed
+
+## ⚡ Why This Is Faster
+
+- **Quality check (type + lint)**: ~5-10 seconds total
+- **Full NX build**: ~15-30 seconds + potential errors
+- **Build with quality issues**: Wasted time + frustration
+- **Auto-fixing**: Saves manual formatting time
+
+## 🚨 Critical Rules for AI Assistance
+
+### Before Any Build Operation
+**MANDATORY**: Always run quality checks first
+```bash
+# ✅ Correct workflow  
+npm run quality-check
+# Only if quality check passes:
+nx build backend
+
+# ❌ NEVER do this
+nx build backend  # without quality checking first
+```
+
+### After Every Code Change
+**MANDATORY**: Always apply quality fixes
+```bash
+# ✅ End every code change session with:
+npm run quality-check
+
+# This will:
+# 1. Check types
+# 2. Auto-fix linting issues  
+# 3. Ensure code consistency
+```
+
+### When Implementing New Features
+1. **FIRST**: Quality check existing code
+2. **DURING**: Quality check after each significant change
+3. **FINAL**: Quality check before committing
+
+### When Debugging Build Errors
+1. **FIRST**: Run `npm run quality-check` to isolate issues
+2. Fix quality issues before investigating build problems
+3. Type/lint errors often cause confusing build failures
+
+## 🔧 Integration with NX
+
+### NX Build Commands (use ONLY after type checking)
+```bash
+# After successful type check:
+nx build shared
+nx build backend  
+nx build frontend
+nx serve backend
+nx serve frontend
+```
+
+### Manual Lint Commands (if needed)
+```bash
+# Check linting without fixing:
+nx lint shared
+nx lint backend  
+nx lint frontend
+
+# Fix linting issues:
+nx lint shared --fix
+nx lint backend --fix
+nx lint frontend --fix
+```
+
+## 📝 Quick Reference Card
+
+**Before every coding session:**
+```bash
+npm run quality-check
+```
+
+**After shared library changes:**
+```bash
+npm run type-check:shared && npm run lint-fix:shared
+nx build shared
+npm run quality-check
+```
+
+**Before committing:**
+```bash
+npm run quality-check
+```
+
+**Before building/serving:**
+```bash
+npm run quality-check && nx build backend
+npm run quality-check && nx serve backend
+```
+
+**🔥 MANDATORY: After every code change:**
+```bash
+npm run quality-check
+```
+
+## 💡 Pro Tips
+
+- **Use `--watch` mode** for types: `tsc --noEmit --watch --project backend/tsconfig.app.json`
+- **IDE integration**: Most IDEs show TypeScript/ESLint errors in real-time
+- **CI/CD**: Add `npm run quality-check` as first step in build pipeline
+- **Auto-fixing**: ESLint fixes many issues automatically (imports, formatting, etc.)
+- **Consistency**: Quality check ensures uniform code style across team
+
+## 🎯 Expected Behavior
+
+- **Quality check passes**: Proceed with confidence
+- **Quality check fails**: Fix errors immediately, don't build
+- **ESLint auto-fixes applied**: Code style is now consistent
+- **Build fails after quality check passes**: Investigation needed (likely config issue)
+
+This approach prevents wasted build cycles, maintains code quality, and catches issues early when they're easier to fix.
+
+## 🔥 GOLDEN RULE FOR AI ASSISTANTS
+
+**NEVER FINISH A CODING SESSION WITHOUT RUNNING:**
+```bash
+npm run quality-check
+```
+
+This ensures:
+- ✅ All TypeScript types are correct
+- ✅ All ESLint issues are auto-fixed
+- ✅ Code style is consistent
+- ✅ Ready for commit/build
