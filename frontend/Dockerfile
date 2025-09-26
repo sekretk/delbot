@@ -4,7 +4,7 @@ WORKDIR /app
 
 # TODO Copy package files and install dependencies
 COPY . .
-RUN npm i
+RUN npm install --legacy-peer-deps
 
 # Build the frontend application
 RUN npx nx build frontend --prod
