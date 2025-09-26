@@ -6,7 +6,7 @@ WORKDIR /app
 COPY . .
 
 # Install dependencies
-RUN npm install
+RUN npm install --legacy-peer-deps
 
 # Build the backend application directly
 RUN npx nx build backend --prod
