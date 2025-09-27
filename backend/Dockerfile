@@ -2,11 +2,29 @@
 FROM node:24 AS builder
 WORKDIR /app
 
-# TODO: Copy all necessary files for build
-COPY . .
+# Install build dependencies for native modules
+RUN apt-get update && apt-get install -y \
+    python3 \
+    make \
+    g++ \
+    && rm -rf /var/lib/apt/lists/*
 
-# Install dependencies
-RUN npm install --legacy-peer-deps
+# Copy package files first for better caching
+COPY package*.json ./
+COPY tsconfig.base.json ./
+COPY nx.json ./
+
+# Install dependencies with workaround for @swc/core segfault
+ENV SKIP_POSTINSTALL=1 \
+    NODE_OPTIONS="--max-old-space-size=4096" \
+    npm_config_build_from_source=true
+
+RUN npm config set cache /tmp/.npm && \
+    npm install --legacy-peer-deps --ignore-scripts && \
+    npm rebuild --legacy-peer-deps || echo "Rebuild failed, continuing..."
+
+# Copy source code
+COPY . .
 
 # Build the backend application directly
 RUN npx nx build backend --prod

@@ -1,27 +1,41 @@
-import { initContract } from '@ts-rest/core';
-import { AppDataDto, HealthResponseDto } from '../dto/app-data.dto';
+import { z } from 'zod';
+import { router, publicProcedure } from '../trpc';
+import { AppDataSchema, HealthResponseSchema } from '../dto/app-data.dto';
 
-const c = initContract();
+export const appRouter = router({
+  getData: publicProcedure
+    .meta({
+      openapi: {
+        method: 'GET',
+        path: '/api',
+        summary: 'Get application data',
+        description: 'Returns application data from the service',
+        tags: ['app'],
+      },
+    })
+    .input(z.void())
+    .output(AppDataSchema)
+    .query(async () => {
+      // This will be implemented in the backend
+      throw new Error('Not implemented - backend will handle this');
+    }),
 
-export const appContract = c.router({
-  getData: {
-    method: 'GET',
-    path: '/api',
-    responses: {
-      200: c.type<AppDataDto>(),
-    },
-    summary: 'Get application data',
-    description: 'Returns application data from the service',
-  },
-  getHealth: {
-    method: 'GET',
-    path: '/api/health',
-    responses: {
-      200: c.type<HealthResponseDto>(),
-    },
-    summary: 'Health check endpoint',
-    description: 'Returns the current health status and timestamp',
-  },
+  getHealth: publicProcedure
+    .meta({
+      openapi: {
+        method: 'GET',
+        path: '/api/health',
+        summary: 'Health check endpoint', 
+        description: 'Returns the current health status and timestamp',
+        tags: ['app'],
+      },
+    })
+    .input(z.void())
+    .output(HealthResponseSchema)
+    .query(async () => {
+      // This will be implemented in the backend
+      throw new Error('Not implemented - backend will handle this');
+    }),
 });
 
-export type AppContract = typeof appContract;
+export type AppRouter = typeof appRouter;
