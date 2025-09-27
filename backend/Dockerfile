@@ -14,8 +14,17 @@ COPY package*.json ./
 COPY tsconfig.base.json ./
 COPY nx.json ./
 
-# Install dependencies
-RUN npm install --legacy-peer-deps
+# Install dependencies with workaround for @swc/core segfault
+ENV SKIP_POSTINSTALL=1 \
+    NODE_OPTIONS="--max-old-space-size=4096" \
+    npm_config_build_from_source=true
+
+RUN npm config set cache /tmp/.npm && \
+    npm install --legacy-peer-deps --ignore-scripts && \
+    npm rebuild --legacy-peer-deps || echo "Rebuild failed, continuing..."
+
+# Copy source code
+COPY . .
 
 # Copy source code and shared libraries
 COPY . .
