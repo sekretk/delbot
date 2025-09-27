@@ -2,9 +2,29 @@
 FROM node:24-alpine AS builder
 WORKDIR /app
 
-# TODO Copy package files and install dependencies
+# Install build dependencies for native modules in Alpine
+RUN apk add --no-cache \
+    python3 \
+    make \
+    g++ \
+    libc6-compat
+
+# Copy package files first for better caching
+COPY package*.json ./
+COPY tsconfig.base.json ./
+COPY nx.json ./
+
+# Install dependencies with workaround for @swc/core segfault  
+ENV SKIP_POSTINSTALL=1 \
+    NODE_OPTIONS="--max-old-space-size=4096" \
+    npm_config_build_from_source=true
+
+RUN npm config set cache /tmp/.npm && \
+    npm install --legacy-peer-deps --ignore-scripts && \
+    npm rebuild --legacy-peer-deps || echo "Rebuild failed, continuing..."
+
+# Copy source code
 COPY . .
-RUN npm install --legacy-peer-deps
 
 # Build the frontend application
 RUN npx nx build frontend --prod

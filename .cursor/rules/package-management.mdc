@@ -1,0 +1,90 @@
+---
+description: Package management guidelines to prevent version conflicts
+globs: 
+  - "package.json"
+  - "package-lock.json"
+  - "**/package.json"
+alwaysApply: true
+---
+
+# Package Management Rules
+
+## Dependency Management
+- **NEVER** manually edit package.json dependencies, devDependencies, or versions
+- **ALWAYS** use npm CLI commands for package management
+- **NEVER** manually edit package-lock.json (it should only be modified by npm)
+
+## Required Commands for Package Operations
+
+### Adding Dependencies
+```bash
+# Production dependencies
+npm install <package-name>
+npm install <package-name>@<version>
+
+# Development dependencies  
+npm install --save-dev <package-name>
+npm install --save-dev <package-name>@<version>
+
+# Specific workspace (for monorepos)
+npm install <package-name> --workspace=<workspace-name>
+```
+
+### Removing Dependencies
+```bash
+# Remove packages
+npm uninstall <package-name>
+npm uninstall <package-name> --workspace=<workspace-name>
+```
+
+### Updating Dependencies
+```bash
+# Update specific package
+npm update <package-name>
+
+# Update all packages (use with caution)
+npm update
+```
+
+## Why This Rule Exists
+
+### ✅ Benefits of Using NPM Commands
+1. **Early Error Detection**: NPM will immediately detect and report:
+   - Version conflicts between dependencies
+   - Incompatible peer dependencies
+   - Breaking changes in semver ranges
+   - Missing dependencies
+
+2. **Automatic Lock File Management**: 
+   - package-lock.json stays synchronized
+   - Ensures reproducible installations
+   - Prevents "works on my machine" issues
+
+3. **Dependency Resolution**: 
+   - NPM resolves dependency trees correctly
+   - Handles transitive dependencies properly
+   - Optimizes package installation
+
+4. **Version Validation**: 
+   - Validates version ranges and availability
+   - Checks package registry for existence
+   - Ensures compatible version combinations
+
+### ❌ Problems with Manual Edits
+1. **Silent Failures**: Manual edits can create invalid states that only surface during deployment
+2. **Lock File Drift**: package-lock.json becomes out of sync, causing installation issues
+3. **Version Conflicts**: Human errors in version ranges cause runtime failures
+4. **Missing Peer Dependencies**: Manual edits bypass peer dependency warnings
+
+## Exceptions
+The only acceptable manual edits to package.json are:
+- Updating scripts section
+- Modifying project metadata (name, description, author, etc.)
+- Changing configuration options (not dependencies)
+
+## Enforcement
+If you need to modify dependencies:
+1. Use the appropriate npm command
+2. Commit both package.json AND package-lock.json changes together  
+3. Test that `npm ci` works after your changes
+4. Verify the application builds and runs correctly
