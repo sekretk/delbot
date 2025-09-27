@@ -1,75 +1,54 @@
-import { useState } from 'react';
-import { AppDataDto, HealthResponseDto } from '@delbot/shared';
-import { api } from '../../api/client';
+import { trpc } from '../../api/client';
 
 export function ApiTest() {
-  const [appData, setAppData] = useState<AppDataDto | null>(null);
-  const [healthData, setHealthData] = useState<HealthResponseDto | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  // Using tRPC React hooks for better integration
+  const appDataQuery = trpc.app.getData.useQuery();
+  const healthQuery = trpc.app.getHealth.useQuery();
 
-  const fetchAppData = async () => {
-    try {
-      setLoading(true);
-      setError(null);
-      const response = await api.getData();
-      if (response.status === 200) {
-        setAppData(response.body);
-      }
-    } catch (err) {
-      setError('Failed to fetch app data');
-      console.error(err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const fetchHealthData = async () => {
-    try {
-      setLoading(true);
-      setError(null);
-      const response = await api.getHealth();
-      if (response.status === 200) {
-        setHealthData(response.body);
-      }
-    } catch (err) {
-      setError('Failed to fetch health data');
-      console.error(err);
-    } finally {
-      setLoading(false);
-    }
-  };
+  // Manual refetch functions
+  const refetchAppData = () => appDataQuery.refetch();
+  const refetchHealth = () => healthQuery.refetch();
 
   return (
     <div style={{ padding: '20px', maxWidth: '600px', margin: '0 auto' }}>
-      <h2>TS-Rest API Test</h2>
+      <h2>tRPC API Test</h2>
       
       <div style={{ marginBottom: '20px' }}>
-        <button onClick={fetchAppData} disabled={loading}>
-          {loading ? 'Loading...' : 'Fetch App Data'}
+        <button onClick={refetchAppData} disabled={appDataQuery.isLoading}>
+          {appDataQuery.isLoading ? 'Loading...' : 'Fetch App Data'}
         </button>
-        {appData && (
+        {appDataQuery.data && (
           <div style={{ marginTop: '10px', padding: '10px', backgroundColor: '#f0f0f0' }}>
-            <strong>App Data:</strong> {appData.message}
+            <strong>App Data:</strong> {appDataQuery.data.message}
+          </div>
+        )}
+        {appDataQuery.error && (
+          <div style={{ marginTop: '10px', padding: '10px', backgroundColor: '#ffe6e6', color: '#cc0000' }}>
+            <strong>App Data Error:</strong> {appDataQuery.error.message}
           </div>
         )}
       </div>
 
       <div style={{ marginBottom: '20px' }}>
-        <button onClick={fetchHealthData} disabled={loading}>
-          {loading ? 'Loading...' : 'Check Health'}
+        <button onClick={refetchHealth} disabled={healthQuery.isLoading}>
+          {healthQuery.isLoading ? 'Loading...' : 'Check Health'}
         </button>
-        {healthData && (
+        {healthQuery.data && (
           <div style={{ marginTop: '10px', padding: '10px', backgroundColor: '#e6ffe6' }}>
-            <strong>Health Status:</strong> {healthData.status}<br />
-            <strong>Timestamp:</strong> {healthData.timestamp}
+            <strong>Health Status:</strong> {healthQuery.data.status}<br />
+            <strong>Timestamp:</strong> {healthQuery.data.timestamp}
+          </div>
+        )}
+        {healthQuery.error && (
+          <div style={{ marginTop: '10px', padding: '10px', backgroundColor: '#ffe6e6', color: '#cc0000' }}>
+            <strong>Health Error:</strong> {healthQuery.error.message}
           </div>
         )}
       </div>
 
-      {error && (
-        <div style={{ padding: '10px', backgroundColor: '#ffe6e6', color: '#cc0000' }}>
-          <strong>Error:</strong> {error}
+      {(appDataQuery.isError || healthQuery.isError) && (
+        <div style={{ padding: '10px', backgroundColor: '#fff3cd', border: '1px solid #ffeaa7' }}>
+          <strong>Note:</strong> Make sure the backend server is running on http://localhost:3000
         </div>
       )}
     </div>
