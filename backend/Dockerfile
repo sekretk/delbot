@@ -14,16 +14,10 @@ COPY package*.json ./
 COPY tsconfig.base.json ./
 COPY nx.json ./
 
-# Install dependencies with workaround for @swc/core segfault
-ENV SKIP_POSTINSTALL=1 \
-    NODE_OPTIONS="--max-old-space-size=4096" \
-    npm_config_build_from_source=true
+# Install dependencies
+RUN npm install --legacy-peer-deps
 
-RUN npm config set cache /tmp/.npm && \
-    npm install --legacy-peer-deps --ignore-scripts && \
-    npm rebuild --legacy-peer-deps || echo "Rebuild failed, continuing..."
-
-# Copy source code
+# Copy source code and shared libraries
 COPY . .
 
 # Build the backend application directly
