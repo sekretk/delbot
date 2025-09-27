@@ -9,8 +9,16 @@ RUN apt-get update && apt-get install -y \
     g++ \
     && rm -rf /var/lib/apt/lists/*
 
+# Copy package files first for better caching
+COPY package*.json ./
+COPY tsconfig.base.json ./
+COPY nx.json ./
+
 # Install dependencies
 RUN npm install --legacy-peer-deps
+
+# Copy source code and shared libraries
+COPY . .
 
 # Build the backend application directly
 RUN npx nx build backend --prod
