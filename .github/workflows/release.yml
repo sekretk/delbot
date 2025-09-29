@@ -225,16 +225,16 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### 🐳 Docker Images Published" >> $GITHUB_STEP_SUMMARY
           echo "**Backend:**" >> $GITHUB_STEP_SUMMARY
-          echo "- [\`${{ env.REGISTRY }}/${{ env.IMAGE_NAME_BACKEND }}:${{ steps.version-info.outputs.version }}\`](https://github.com/${{ github.repository }}/pkgs/container/backend)" >> $GITHUB_STEP_SUMMARY
+          echo "- [\`${{ needs.build-and-push.outputs.backend-image }}\`](https://github.com/${{ github.repository }}/pkgs/container/backend)" >> $GITHUB_STEP_SUMMARY
           echo "- [\`${{ env.REGISTRY }}/${{ env.IMAGE_NAME_BACKEND }}:latest\`](https://github.com/${{ github.repository }}/pkgs/container/backend)" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "**Frontend:**" >> $GITHUB_STEP_SUMMARY
-          echo "- [\`${{ env.REGISTRY }}/${{ env.IMAGE_NAME_FRONTEND }}:${{ steps.version-info.outputs.version }}\`](https://github.com/${{ github.repository }}/pkgs/container/frontend)" >> $GITHUB_STEP_SUMMARY
+          echo "- [\`${{ needs.build-and-push.outputs.frontend-image }}\`](https://github.com/${{ github.repository }}/pkgs/container/frontend)" >> $GITHUB_STEP_SUMMARY
           echo "- [\`${{ env.REGISTRY }}/${{ env.IMAGE_NAME_FRONTEND }}:latest\`](https://github.com/${{ github.repository }}/pkgs/container/frontend)" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           if [ "${{ env.KUBE_ACCESS }}" == "true" ]; then
             echo "### 🚀 Live Application" >> $GITHUB_STEP_SUMMARY
-            echo "**DelBot ${{ steps.version-info.outputs.version }} is now live!**" >> $GITHUB_STEP_SUMMARY
+            echo "**DelBot ${{ needs.build-and-push.outputs.version }} is now live!**" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
             echo "- 🌐 **Frontend:** [http://delbot.boysthings.top/](http://delbot.boysthings.top/)" >> $GITHUB_STEP_SUMMARY
             echo "- 🔧 **Backend API:** [http://delbot.boysthings.top/api/health](http://delbot.boysthings.top/api/health)" >> $GITHUB_STEP_SUMMARY
@@ -252,11 +252,11 @@ jobs:
             echo "### 🚀 Manual Deployment" >> $GITHUB_STEP_SUMMARY
             echo "\`\`\`bash" >> $GITHUB_STEP_SUMMARY
             echo "# Deploy manually using Helm" >> $GITHUB_STEP_SUMMARY
-            echo "./deploy.sh --version ${{ steps.version-info.outputs.version }}" >> $GITHUB_STEP_SUMMARY
+            echo "./deploy.sh --version ${{ needs.build-and-push.outputs.version }}" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
             echo "# Or using Docker" >> $GITHUB_STEP_SUMMARY
-            echo "docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_BACKEND }}:${{ steps.version-info.outputs.version }}" >> $GITHUB_STEP_SUMMARY  
-            echo "docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_FRONTEND }}:${{ steps.version-info.outputs.version }}" >> $GITHUB_STEP_SUMMARY
+            echo "docker pull ${{ needs.build-and-push.outputs.backend-image }}" >> $GITHUB_STEP_SUMMARY  
+            echo "docker pull ${{ needs.build-and-push.outputs.frontend-image }}" >> $GITHUB_STEP_SUMMARY
             echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
           fi
           
@@ -280,21 +280,21 @@ jobs:
               DEPLOY_STATUS="📦 *Docker images published* (manual deployment required)"
               APP_LINKS="
               🚀 *Deploy manually:*
-              \`./deploy.sh --version ${{ steps.version-info.outputs.version }}\`"
+              \`./deploy.sh --version ${{ needs.build-and-push.outputs.version }}\`"
             fi
             
             # Create release message
-            MESSAGE="🤖 *DelBot Release ${{ steps.version-info.outputs.version }}* 🚀
+            MESSAGE="🤖 *DelBot Release ${{ needs.build-and-push.outputs.version }}* 🚀
             
-            📅 *Date:* ${{ steps.version-info.outputs.release-date }}
-            🏷️ *Version:* ${{ steps.version-info.outputs.version }}
+            📅 *Date:* ${{ needs.build-and-push.outputs.release-date }}
+            🏷️ *Version:* ${{ needs.build-and-push.outputs.version }}
             📝 *Commit:* [\`${GITHUB_SHA:0:7}\`](https://github.com/${{ github.repository }}/commit/${{ github.sha }})
             
             ${DEPLOY_STATUS}${APP_LINKS}
             
             🐳 *Docker Images Published:*
-            • \`ghcr.io/sekretk/delbot/backend:${{ steps.version-info.outputs.version }}\`
-            • \`ghcr.io/sekretk/delbot/frontend:${{ steps.version-info.outputs.version }}\`
+            • \`${{ needs.build-and-push.outputs.backend-image }}\`
+            • \`${{ needs.build-and-push.outputs.frontend-image }}\`
             
             📋 *Release Details:*
             [View on GitHub](https://github.com/${{ github.repository }}/releases/tag/${{ github.ref_name }})
