@@ -20,6 +20,9 @@ RUN npm install --legacy-peer-deps
 # Copy source code and shared libraries
 COPY . .
 
+# Copy source code and shared libraries
+COPY . .
+
 # Build the backend application directly
 RUN npx nx build backend --prod
 
