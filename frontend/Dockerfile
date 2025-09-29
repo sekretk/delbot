@@ -17,7 +17,8 @@ COPY nx.json ./
 # Install dependencies with workaround for @swc/core segfault  
 ENV SKIP_POSTINSTALL=1 \
     NODE_OPTIONS="--max-old-space-size=4096" \
-    npm_config_build_from_source=true
+    npm_config_build_from_source=true \
+    NX_REJECT_UNKNOWN_LOCAL_CACHE=0
 
 RUN npm config set cache /tmp/.npm && \
     npm install --legacy-peer-deps --ignore-scripts && \
@@ -26,8 +27,16 @@ RUN npm config set cache /tmp/.npm && \
 # Copy source code
 COPY . .
 
+# Replace nx.json with production version to exclude problematic plugins
+RUN mv nx.prod.json nx.json
+
 # Build the frontend application
-RUN npx nx build frontend --prod
+# Skip problematic plugins during production build in Docker
+ENV NX_SKIP_NX_CACHE=true \
+    NX_DAEMON=false \
+    NX_PARALLEL=1
+
+RUN npx nx build frontend --prod --skip-nx-cache
 
 # Production stage with nginx
 FROM nginx:alpine AS production

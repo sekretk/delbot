@@ -36,12 +36,14 @@ RUN addgroup -g 1001 -S nodejs && adduser -S nestjs -u 1001
 # Copy only production runtime dependencies (much smaller)
 COPY --from=builder --chown=nestjs:nodejs /app/dist/backend ./dist
 
-# Copy only essential runtime node_modules (NestJS core dependencies)
+# Copy only essential runtime node_modules (NestJS + tRPC dependencies)
 RUN npm init -y && \
     npm install --production --no-audit --no-fund \
     @nestjs/core@^11.0.0 \
     @nestjs/common@^11.0.0 \
     @nestjs/platform-express@^11.0.0 \
+    @nestjs/swagger@^11.2.0 \
+    @trpc/server@^11.0.0 \
     reflect-metadata@^0.2.0 \
     rxjs@^7.8.0
 
