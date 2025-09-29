@@ -11,11 +11,17 @@ env:
   IMAGE_NAME_FRONTEND: ${{ github.repository }}/frontend
 
 jobs:
-  release:
+  build-and-push:
+    name: Build & Push Docker Images
     runs-on: ubuntu-latest
     permissions:
       contents: read
       packages: write
+    outputs:
+      version: ${{ steps.version-info.outputs.version }}
+      release-date: ${{ steps.version-info.outputs.release-date }}
+      backend-image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_BACKEND }}:${{ steps.version-info.outputs.version }}
+      frontend-image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_FRONTEND }}:${{ steps.version-info.outputs.version }}
     
     steps:
       - name: Checkout code
@@ -94,6 +100,33 @@ jobs:
           
           echo "✅ Frontend image pushed successfully!"
           
+      - name: Create build summary
+        run: |
+          echo "🎉 **Build & Push Complete!**" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 📦 Built Images" >> $GITHUB_STEP_SUMMARY
+          echo "**Backend:**" >> $GITHUB_STEP_SUMMARY
+          echo "- [\`${{ env.REGISTRY }}/${{ env.IMAGE_NAME_BACKEND }}:${{ steps.version-info.outputs.version }}\`](https://github.com/${{ github.repository }}/pkgs/container/backend)" >> $GITHUB_STEP_SUMMARY
+          echo "- [\`${{ env.REGISTRY }}/${{ env.IMAGE_NAME_BACKEND }}:latest\`](https://github.com/${{ github.repository }}/pkgs/container/backend)" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Frontend:**" >> $GITHUB_STEP_SUMMARY
+          echo "- [\`${{ env.REGISTRY }}/${{ env.IMAGE_NAME_FRONTEND }}:${{ steps.version-info.outputs.version }}\`](https://github.com/${{ github.repository }}/pkgs/container/frontend)" >> $GITHUB_STEP_SUMMARY
+          echo "- [\`${{ env.REGISTRY }}/${{ env.IMAGE_NAME_FRONTEND }}:latest\`](https://github.com/${{ github.repository }}/pkgs/container/frontend)" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "✅ **Images ready for deployment**" >> $GITHUB_STEP_SUMMARY
+
+  deploy:
+    name: Deploy to Kubernetes
+    runs-on: ubuntu-latest
+    needs: build-and-push
+    if: success() && needs.build-and-push.result == 'success'
+    permissions:
+      contents: read
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+        
       - name: Install kubectl
         run: |
           echo "⚙️ Installing kubectl..."
@@ -136,14 +169,14 @@ jobs:
       - name: Deploy to Kubernetes with Helm
         if: env.KUBE_ACCESS == 'true'
         run: |
-          echo "🚀 Deploying DelBot version ${{ steps.version-info.outputs.version }} to Kubernetes..."
+          echo "🚀 Deploying DelBot version ${{ needs.build-and-push.outputs.version }} to Kubernetes..."
           
-          # Deploy using Helm
+          # Deploy using Helm with images from build job
           helm upgrade --install delbot ./delbot-chart \
-            --set backend.image.tag=${{ steps.version-info.outputs.version }} \
-            --set frontend.image.tag=${{ steps.version-info.outputs.version }} \
-            --set commonLabels.version=${{ steps.version-info.outputs.version }} \
-            --wait --timeout=300s
+            --set backend.image.tag=${{ needs.build-and-push.outputs.version }} \
+            --set frontend.image.tag=${{ needs.build-and-push.outputs.version }} \
+            --set commonLabels.version=${{ needs.build-and-push.outputs.version }} \
+            --wait --timeout=600s
           
           echo "✅ Deployment completed successfully!"
           
@@ -163,23 +196,13 @@ jobs:
           echo "Backend: $(kubectl get deployment delbot-backend -n delbot -o jsonpath='{.spec.template.spec.containers[0].image}')"
           echo "Frontend: $(kubectl get deployment delbot-frontend -n delbot -o jsonpath='{.spec.template.spec.containers[0].image}')"
           
-      - name: Show published images
-        run: |
-          echo "📋 Published Docker images:"
-          echo "Backend:"
-          echo "  - ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_BACKEND }}:${{ steps.version-info.outputs.version }}"
-          echo "  - ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_BACKEND }}:latest"
-          echo "Frontend:"
-          echo "  - ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_FRONTEND }}:${{ steps.version-info.outputs.version }}"
-          echo "  - ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_FRONTEND }}:latest"
-          
       - name: Create release summary
         run: |
-          echo "🎉 **Release ${{ steps.version-info.outputs.version }} Complete!**" >> $GITHUB_STEP_SUMMARY
+          echo "🎉 **Release ${{ needs.build-and-push.outputs.version }} Complete!**" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### 📋 Release Details" >> $GITHUB_STEP_SUMMARY
-          echo "- **Version:** ${{ steps.version-info.outputs.version }}" >> $GITHUB_STEP_SUMMARY  
-          echo "- **Date:** ${{ steps.version-info.outputs.release-date }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Version:** ${{ needs.build-and-push.outputs.version }}" >> $GITHUB_STEP_SUMMARY  
+          echo "- **Date:** ${{ needs.build-and-push.outputs.release-date }}" >> $GITHUB_STEP_SUMMARY
           echo "- **Git SHA:** ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
           echo "- **Environment:** production" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
