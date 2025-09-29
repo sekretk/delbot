@@ -1,0 +1,237 @@
+name: Kubernetes Connectivity Test
+
+on:
+  workflow_dispatch:
+    inputs:
+      namespace:
+        description: 'Namespace to check pods in'
+        required: false
+        default: 'delbot'
+        type: string
+
+env:
+  REGISTRY: ghcr.io
+
+jobs:
+  connectivity-test:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+        
+      - name: Install kubectl
+        run: |
+          echo "⚙️ Installing kubectl..."
+          curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
+          chmod +x kubectl
+          sudo mv kubectl /usr/local/bin/
+          echo "✅ kubectl installed successfully!"
+          kubectl version --client
+          
+      - name: Setup Kubernetes cluster access
+        env:
+          KUBE_CONFIG: ${{ secrets.KUBE_CONFIG }}
+        run: |
+          if [ -n "$KUBE_CONFIG" ]; then
+            echo "🔧 Setting up Kubernetes cluster access..."
+            mkdir -p ~/.kube
+            echo "$KUBE_CONFIG" | base64 -d > ~/.kube/config
+            chmod 600 ~/.kube/config
+            echo "✅ Kubeconfig setup completed"
+            
+            # Show config context (without sensitive data)
+            echo "📋 Current kubectl context:"
+            kubectl config current-context || echo "❌ No current context"
+            
+            echo "📋 Available contexts:"
+            kubectl config get-contexts || echo "❌ No contexts available"
+          else
+            echo "❌ KUBE_CONFIG secret not configured"
+            exit 1
+          fi
+          
+      - name: Test cluster connectivity
+        run: |
+          echo "🔍 Testing Kubernetes cluster connectivity..."
+          echo "=================================="
+          
+          echo "📊 Cluster Info:"
+          if kubectl cluster-info; then
+            echo "✅ Successfully connected to Kubernetes cluster"
+          else
+            echo "❌ Failed to connect to Kubernetes cluster"
+            exit 1
+          fi
+          
+      - name: Check cluster nodes
+        run: |
+          echo ""
+          echo "🖥️ Cluster Nodes:"
+          echo "=================="
+          kubectl get nodes -o wide || echo "❌ Failed to get nodes"
+          
+      - name: List all namespaces
+        run: |
+          echo ""
+          echo "📁 Available Namespaces:"
+          echo "========================"
+          kubectl get namespaces || echo "❌ Failed to get namespaces"
+          
+      - name: Check delbot namespace
+        run: |
+          echo ""
+          echo "🤖 DelBot Namespace Status:"
+          echo "==========================="
+          
+          NAMESPACE="${{ github.event.inputs.namespace }}"
+          echo "Checking namespace: $NAMESPACE"
+          
+          if kubectl get namespace "$NAMESPACE" >/dev/null 2>&1; then
+            echo "✅ Namespace '$NAMESPACE' exists"
+            
+            echo ""
+            echo "📋 Pods in '$NAMESPACE' namespace:"
+            kubectl get pods -n "$NAMESPACE" -o wide || echo "❌ Failed to get pods in $NAMESPACE"
+            
+            echo ""
+            echo "📋 Services in '$NAMESPACE' namespace:"  
+            kubectl get services -n "$NAMESPACE" || echo "❌ Failed to get services in $NAMESPACE"
+            
+            echo ""
+            echo "📋 Deployments in '$NAMESPACE' namespace:"
+            kubectl get deployments -n "$NAMESPACE" -o wide || echo "❌ Failed to get deployments in $NAMESPACE"
+            
+            echo ""
+            echo "📋 Ingresses in '$NAMESPACE' namespace:"
+            kubectl get ingresses -n "$NAMESPACE" || echo "❌ Failed to get ingresses in $NAMESPACE"
+          else
+            echo "⚠️ Namespace '$NAMESPACE' does not exist"
+          fi
+          
+      - name: Check for existing delbot deployment
+        run: |
+          echo ""
+          echo "🔍 Checking existing DelBot deployment:"
+          echo "======================================="
+          
+          NAMESPACE="${{ github.event.inputs.namespace }}"
+          
+          # Check backend deployment
+          echo "Backend deployment status:"
+          if kubectl get deployment delbot-backend -n "$NAMESPACE" >/dev/null 2>&1; then
+            echo "✅ delbot-backend deployment exists"
+            kubectl describe deployment delbot-backend -n "$NAMESPACE" | grep -E "(Replicas|Image|Ready|Conditions)" || true
+          else
+            echo "❌ delbot-backend deployment not found"
+          fi
+          
+          echo ""
+          echo "Frontend deployment status:"
+          if kubectl get deployment delbot-frontend -n "$NAMESPACE" >/dev/null 2>&1; then
+            echo "✅ delbot-frontend deployment exists"  
+            kubectl describe deployment delbot-frontend -n "$NAMESPACE" | grep -E "(Replicas|Image|Ready|Conditions)" || true
+          else
+            echo "❌ delbot-frontend deployment not found"
+          fi
+          
+      - name: Check pod logs (if any issues)
+        run: |
+          echo ""
+          echo "🔍 Recent pod events and logs:"
+          echo "=============================="
+          
+          NAMESPACE="${{ github.event.inputs.namespace }}"
+          
+          # Get recent events in the namespace
+          echo "Recent events in $NAMESPACE:"
+          kubectl get events -n "$NAMESPACE" --sort-by='.lastTimestamp' | tail -10 || echo "No recent events"
+          
+          echo ""
+          echo "Pod statuses:"
+          kubectl get pods -n "$NAMESPACE" -o custom-columns="NAME:.metadata.name,STATUS:.status.phase,READY:.status.containerStatuses[0].ready,RESTARTS:.status.containerStatuses[0].restartCount,IMAGE:.spec.containers[0].image" || echo "No pods found"
+          
+      - name: Test Helm connectivity
+        run: |
+          echo ""
+          echo "⚙️ Installing and testing Helm..."
+          curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
+          echo "✅ Helm installed successfully!"
+          helm version
+          
+          echo ""
+          echo "📋 Existing Helm releases:"
+          helm list --all-namespaces || echo "No Helm releases found"
+          
+          NAMESPACE="${{ github.event.inputs.namespace }}"
+          echo ""
+          echo "📋 Helm releases in '$NAMESPACE':"
+          helm list -n "$NAMESPACE" || echo "No Helm releases in $NAMESPACE"
+          
+          if helm list -n "$NAMESPACE" | grep -q delbot; then
+            echo ""
+            echo "📊 DelBot Helm release status:"
+            helm status delbot -n "$NAMESPACE" || echo "Failed to get DelBot release status"
+          fi
+          
+      - name: Create connectivity test summary
+        if: always()
+        run: |
+          echo "🧪 **Kubernetes Connectivity Test Complete**" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 📋 Test Results" >> $GITHUB_STEP_SUMMARY
+          echo "- **Cluster:** $(kubectl config current-context 2>/dev/null || echo 'Unknown')" >> $GITHUB_STEP_SUMMARY  
+          echo "- **Namespace:** ${{ github.event.inputs.namespace }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Test Date:** $(date -u)" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          NAMESPACE="${{ github.event.inputs.namespace }}"
+          
+          # Check connectivity results
+          if kubectl cluster-info >/dev/null 2>&1; then
+            echo "- [x] ✅ Cluster connectivity: **SUCCESS**" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "- [ ] ❌ Cluster connectivity: **FAILED**" >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          if kubectl get namespace "$NAMESPACE" >/dev/null 2>&1; then
+            echo "- [x] ✅ Namespace '$NAMESPACE': **EXISTS**" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "- [ ] ⚠️ Namespace '$NAMESPACE': **NOT FOUND**" >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          if kubectl get deployment delbot-backend -n "$NAMESPACE" >/dev/null 2>&1; then
+            echo "- [x] ✅ Backend deployment: **EXISTS**" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "- [ ] ❌ Backend deployment: **NOT FOUND**" >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          if kubectl get deployment delbot-frontend -n "$NAMESPACE" >/dev/null 2>&1; then
+            echo "- [x] ✅ Frontend deployment: **EXISTS**" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "- [ ] ❌ Frontend deployment: **NOT FOUND**" >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          if helm list -n "$NAMESPACE" | grep -q delbot; then
+            echo "- [x] ✅ Helm release 'delbot': **EXISTS**" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "- [ ] ❌ Helm release 'delbot': **NOT FOUND**" >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 🔍 Quick Commands for Manual Testing" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`bash" >> $GITHUB_STEP_SUMMARY
+          echo "# Check pods" >> $GITHUB_STEP_SUMMARY
+          echo "kubectl get pods -n $NAMESPACE" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "# Check services" >> $GITHUB_STEP_SUMMARY
+          echo "kubectl get services -n $NAMESPACE" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "# Check deployments" >> $GITHUB_STEP_SUMMARY
+          echo "kubectl get deployments -n $NAMESPACE" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "# Check Helm release" >> $GITHUB_STEP_SUMMARY
+          echo "helm status delbot -n $NAMESPACE" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
