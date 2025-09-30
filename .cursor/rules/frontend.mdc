@@ -1,0 +1,101 @@
+# Frontend Development Rules
+
+## Material UI Component Library
+- We use **Material UI (MUI)** as the primary component library
+- All UI components should follow Material Design principles
+- Use `@mui/material` components for consistency
+- Leverage `@mui/icons-material` for icons
+- Follow responsive design patterns with MUI breakpoints
+
+## Component Architecture
+- Use functional components with TypeScript
+- Implement proper prop typing with interfaces
+- Follow React best practices for component composition
+- Use Material UI's theme system for styling
+- Implement responsive design with MUI's Grid system
+
+## Styling Guidelines
+- Use MUI's `sx` prop for component styling
+- Leverage theme values for colors, spacing, and typography
+- Follow Material Design color palette
+- Use breakpoints for responsive design
+- Avoid custom CSS when MUI components suffice
+
+## Layout Structure
+- Use `Layout.tsx` as the main application wrapper
+- Implement responsive navigation with `Drawer` and `AppBar`
+- Use `CssBaseline` for consistent baseline styles
+- Follow Material Design layout principles
+
+## Component Patterns
+- Create reusable components in `frontend/src/app/components/`
+- Use Material UI components as base building blocks
+- Implement proper error boundaries and loading states
+- Follow accessibility guidelines (ARIA labels, keyboard navigation)
+
+## State Management
+- Use React hooks for local component state
+- Implement Context API for global state when needed
+- Use Material UI's built-in state management for form components
+- Follow React best practices for state updates
+
+## Navigation
+- Use React Router for client-side routing
+- Implement consistent navigation patterns
+- Use Material UI navigation components (`List`, `ListItem`)
+- Ensure proper route protection and error handling
+
+## Form Handling
+- Use Material UI form components (`TextField`, `Select`, `Button`)
+- Implement proper form validation
+- Use controlled components for form state
+- Follow Material Design form patterns
+
+## Data Display
+- Use Material UI data components (`Table`, `Card`, `Paper`)
+- Implement proper loading states and error handling
+- Use consistent typography and spacing
+- Follow Material Design data display patterns
+
+## Icons and Imagery
+- Use `@mui/icons-material` for consistent iconography
+- Follow Material Design icon guidelines
+- Use semantic icons that match functionality
+- Implement proper icon sizing and accessibility
+
+## Responsive Design
+- Use MUI's breakpoint system (`xs`, `sm`, `md`, `lg`, `xl`)
+- Implement mobile-first design approach
+- Use `Grid` component for responsive layouts
+- Test across different screen sizes
+
+## Performance
+- Use React.memo for expensive components
+- Implement proper code splitting with React.lazy
+- Use Material UI's built-in performance optimizations
+- Follow React best practices for re-renders
+
+## Testing
+- Write unit tests for components using Jest
+- Use React Testing Library for component testing
+- Test Material UI component interactions
+- Implement accessibility testing
+
+## Development Workflow
+- Create components in `frontend/src/app/components/`
+- Use TypeScript for all component files
+- Follow consistent naming conventions
+- Document component props and usage
+- Use Material UI documentation as reference
+
+## Integration
+- Integrate with backend APIs using proper error handling
+- Use Material UI loading states and notifications
+- Implement proper authentication flow
+- Handle real-time updates appropriately
+
+## Context Files
+- Reference `frontend/components.mdc` for component library details
+- Use Material UI documentation for component APIs
+- Follow established patterns in existing components
+- Maintain consistency across the application

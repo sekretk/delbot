@@ -30,4 +30,4 @@ export const middleware = t.middleware;
  * This is the primary router for the application
  * All other routers will be merged into this one
  */
-export type Context = {};
+export type Context = Record<string, never>;

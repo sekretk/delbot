@@ -1,71 +1,44 @@
-// Uncomment this line to use CSS modules
-// import styles from './app.module.css';
-import NxWelcome from './nx-welcome';
-import { VERSION_INFO, getVersionString } from '../version';
+import React from 'react';
+import { ThemeProvider, createTheme } from '@mui/material/styles';
+import CssBaseline from '@mui/material/CssBaseline';
+import { Route, Routes } from 'react-router-dom';
+import Layout from './components/Layout';
+import Dashboard from './components/Dashboard';
+import OrdersList from './pages/OrdersList';
+import OrderDetails from './pages/OrderDetails';
 import { ApiTest } from './components/ApiTest';
 
-import { Route, Routes, Link } from 'react-router-dom';
+// Create Material UI theme
+const theme = createTheme({
+  palette: {
+    mode: 'light',
+    primary: {
+      main: '#1976d2',
+    },
+    secondary: {
+      main: '#dc004e',
+    },
+  },
+});
 
 export function App() {
   return (
-    <div>
-      <NxWelcome title="frontend" />
-
-      {/* START: routes */}
-      {/* These routes and navigation have been generated for you */}
-      {/* Feel free to move and update them to fit your needs */}
-      <br />
-      <hr />
-      <br />
-      <div role="navigation">
-        <ul>
-          <li>
-            <Link to="/">Home</Link>
-          </li>
-          <li>
-            <Link to="/page-2">Page 2</Link>
-          </li>
-        </ul>
-      </div>
-      <Routes>
-        <Route
-          path="/"
-          element={
-            <div>
-              <h2>🤖 DelBot - Robot Delivery Service</h2>
-              <p>Welcome to the DelBot UI + BFF service for robot delivery!</p>
-              
-              <div style={{
-                background: '#f8f9fa',
-                border: '1px solid #e9ecef',
-                borderRadius: '8px',
-                padding: '16px',
-                margin: '20px 0',
-                fontFamily: 'monospace'
-              }}>
-                <h3 style={{ margin: '0 0 12px 0', fontSize: '16px' }}>🏷️ Version Information</h3>
-                <div><strong>Version:</strong> {getVersionString()}</div>
-                <div><strong>Release Date:</strong> {VERSION_INFO.releaseDate}</div>
-                <div><strong>Environment:</strong> {VERSION_INFO.environment}</div>
-              </div>
-              
-              <Link to="/page-2">Click here for page 2.</Link>
-            </div>
-          }
-        />
-        <Route
-          path="/page-2"
-          element={
-            <div>
-              <ApiTest />
-              <br />
-              <Link to="/">Click here to go back to root page.</Link>
-            </div>
-          }
-        />
-      </Routes>
-      {/* END: routes */}
-    </div>
+    <ThemeProvider theme={theme}>
+      <CssBaseline />
+      <Layout>
+        <Routes>
+          <Route path="/" element={<Dashboard />} />
+          <Route path="/orders" element={<OrdersList />} />
+          <Route path="/orders/:id" element={<OrderDetails />} />
+          <Route path="/orders/:id/edit" element={<div>Edit Order Page (To be implemented)</div>} />
+          <Route path="/orders/new" element={<div>New Order Page (To be implemented)</div>} />
+          <Route path="/analytics" element={<div>Analytics Page (To be implemented)</div>} />
+          <Route path="/settings" element={<div>Settings Page (To be implemented)</div>} />
+          <Route path="/about" element={<div>About Page (To be implemented)</div>} />
+          <Route path="/api-test" element={<ApiTest />} />
+        </Routes>
+      </Layout>
+    </ThemeProvider>
   );
 }
 

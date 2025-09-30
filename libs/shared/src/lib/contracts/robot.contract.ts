@@ -2,9 +2,9 @@ import { z } from 'zod';
 import { router, publicProcedure } from '../trpc';
 import { RobotSchema } from '../dto/robot.dto';
 
-const ErrorSchema = z.object({
-  message: z.string(),
-});
+// const ErrorSchema = z.object({
+//   message: z.string(),
+// });
 
 export const robotRouter = router({
   getRobots: publicProcedure
@@ -36,7 +36,7 @@ export const robotRouter = router({
     })
     .input(z.object({ id: z.string() }))
     .output(RobotSchema)
-    .query(async ({ input }) => {
+    .query(async () => {
       // This will be implemented in the backend
       throw new Error('Not implemented - backend will handle this');
     }),

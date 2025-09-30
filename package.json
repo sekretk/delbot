@@ -6,9 +6,22 @@
     "type-check:frontend": "tsc --noEmit --project frontend/tsconfig.app.json",
     "lint-fix": "npm run lint-fix:shared && npm run lint-fix:backend && npm run lint-fix:frontend",
     "lint-fix:shared": "nx lint shared --fix",
-    "lint-fix:backend": "nx lint backend --fix", 
+    "lint-fix:backend": "nx lint backend --fix",
     "lint-fix:frontend": "nx lint frontend --fix",
-    "quality-check": "npm run type-check && npm run lint-fix"
+    "quality-check": "npm run type-check && npm run lint-fix",
+    "start:backend": "nx serve backend",
+    "start:frontend": "nx serve frontend",
+    "start:dev": "nx run-many --target=serve --projects=backend,frontend --parallel",
+    "start": "npm run start:dev",
+    "build:backend": "nx build backend",
+    "build:frontend": "nx build frontend",
+    "build:all": "nx run-many --target=build --projects=backend,frontend --parallel",
+    "test:backend": "nx test backend",
+    "test:frontend": "nx test frontend",
+    "test:all": "nx run-many --target=test --projects=backend,frontend --parallel",
+    "lint:backend": "nx lint backend",
+    "lint:frontend": "nx lint frontend",
+    "lint:all": "nx run-many --target=lint --projects=backend,frontend --parallel"
   },
   "devDependencies": {
     "@eslint/js": "^9.36.0",
@@ -59,6 +72,10 @@
     "webpack-cli": "^6.0.1"
   },
   "dependencies": {
+    "@emotion/react": "^11.14.0",
+    "@emotion/styled": "^11.14.1",
+    "@mui/icons-material": "^7.3.2",
+    "@mui/material": "^7.3.2",
     "@nestjs/common": "^11.0.0",
     "@nestjs/core": "^11.0.0",
     "@nestjs/platform-express": "^11.0.0",

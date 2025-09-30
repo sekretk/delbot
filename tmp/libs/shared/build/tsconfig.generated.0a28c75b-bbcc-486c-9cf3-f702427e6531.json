@@ -1,0 +1,10 @@
+{
+  "compilerOptions": {
+    "paths": {
+      "@delbot/shared": [
+        "libs/shared/src/index.ts"
+      ]
+    }
+  },
+  "extends": "../../../../libs/shared/tsconfig.lib.json"
+}
