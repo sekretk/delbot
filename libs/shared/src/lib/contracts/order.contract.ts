@@ -2,9 +2,9 @@ import { z } from 'zod';
 import { router, publicProcedure } from '../trpc';
 import { OrderSchema, CreateOrderSchema } from '../dto/order.dto';
 
-const ErrorSchema = z.object({
-  message: z.string(),
-});
+// const ErrorSchema = z.object({
+//   message: z.string(),
+// });
 
 export const orderRouter = router({
   getOrders: publicProcedure
@@ -36,7 +36,7 @@ export const orderRouter = router({
     })
     .input(z.object({ id: z.string() }))
     .output(OrderSchema)
-    .query(async ({ input }) => {
+    .query(async () => {
       // This will be implemented in the backend
       throw new Error('Not implemented - backend will handle this');
     }),
@@ -53,7 +53,7 @@ export const orderRouter = router({
     })
     .input(CreateOrderSchema)
     .output(OrderSchema)
-    .mutation(async ({ input }) => {
+    .mutation(async () => {
       // This will be implemented in the backend
       throw new Error('Not implemented - backend will handle this');
     }),

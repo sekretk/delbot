@@ -48,7 +48,21 @@ tsc --noEmit --project backend/tsconfig.app.json
 tsc --noEmit --project frontend/tsconfig.app.json
 ```
 
-## 📋 Mandatory Development Workflow
+## 📋 MANDATORY Development Workflow
+
+### 🔥 CRITICAL: After EVERY Code Change
+**MANDATORY**: After making ANY code changes, IMMEDIATELY run:
+```bash
+npm run quality-check
+```
+
+This includes:
+- ✅ Adding new files
+- ✅ Modifying existing files
+- ✅ Creating new components
+- ✅ Updating interfaces
+- ✅ Changing imports
+- ✅ Any TypeScript/JavaScript changes
 
 ### BEFORE Making Any Code Changes
 1. **ALWAYS** run `npm run quality-check` first
@@ -204,3 +218,44 @@ This ensures:
 - ✅ All ESLint issues are auto-fixed
 - ✅ Code style is consistent
 - ✅ Ready for commit/build
+
+## 🚨 AUTOMATIC TYPE-CHECKING RULES
+
+### For AI Assistants
+When making ANY code changes, you MUST:
+
+1. **IMMEDIATELY** after creating/modifying files, run:
+   ```bash
+   npm run quality-check
+   ```
+
+2. **NEVER** proceed to build or serve without type-checking first
+
+3. **ALWAYS** fix any TypeScript errors before continuing
+
+4. **MANDATORY** workflow:
+   - Make code changes
+   - Run `npm run quality-check`
+   - Fix any errors
+   - Only then proceed with build/serve
+
+### IDE Integration
+- Enable TypeScript checking in your IDE
+- Set up auto-save with type-checking
+- Configure ESLint to run on save
+- Use TypeScript strict mode
+
+### Continuous Type-Checking
+```bash
+# Watch mode for continuous checking
+npm run type-check:frontend -- --watch
+npm run type-check:backend -- --watch
+```
+
+## 🎯 ENFORCEMENT
+
+This rule is **MANDATORY** and **NON-NEGOTIABLE**:
+- Every code change MUST be followed by type-checking
+- No exceptions for "quick fixes" or "small changes"
+- Type-checking is faster than debugging build failures
+- Consistent code quality prevents technical debt

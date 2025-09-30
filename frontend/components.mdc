@@ -1,0 +1,160 @@
+# DelBot Frontend Components Context
+
+## Material UI Component Library
+
+This frontend uses **Material UI (MUI)** as the primary component library for consistent, accessible, and modern UI components.
+
+### Core Dependencies
+- `@mui/material` - Core Material UI components
+- `@emotion/react` - CSS-in-JS styling engine
+- `@emotion/styled` - Styled components for MUI
+- `@mui/icons-material` - Material Design icons
+
+### Layout Components
+
+#### Layout.tsx
+- **Purpose**: Main application layout with navigation
+- **Features**:
+  - Responsive sidebar navigation
+  - Mobile-friendly drawer
+  - App bar with branding
+  - Material Design navigation structure
+- **Usage**: Wraps all main content areas
+
+#### Dashboard.tsx
+- **Purpose**: Main dashboard with system overview
+- **Features**:
+  - Statistics cards with icons
+  - Recent activity feed
+  - System status indicators
+  - Responsive grid layout
+
+### Component Patterns
+
+#### Material UI Theme
+```typescript
+const theme = createTheme({
+  palette: {
+    mode: 'light',
+    primary: { main: '#1976d2' },
+    secondary: { main: '#dc004e' },
+  },
+});
+```
+
+#### Responsive Design
+- Uses MUI's breakpoint system
+- Mobile-first approach
+- Grid system for layouts
+- Responsive navigation
+
+#### Component Structure
+- Functional components with TypeScript
+- Material UI components for consistency
+- Emotion for styling
+- React Router for navigation
+
+### Available Components
+
+#### Navigation
+- `AppBar` - Top navigation bar
+- `Drawer` - Side navigation drawer
+- `List` - Navigation menu items
+- `ListItem` - Individual menu items
+
+#### Content
+- `Card` - Content containers
+- `Paper` - Elevated content areas
+- `Grid` - Responsive layout system
+- `Box` - Layout container
+
+#### Data Display
+- `Typography` - Text components
+- `Chip` - Status indicators
+- `Avatar` - User/system icons
+
+#### Icons
+- Material Design icons from `@mui/icons-material`
+- Consistent iconography
+- Semantic icon usage
+
+### Styling Approach
+
+#### Theme Provider
+- Centralized theme configuration
+- Consistent color palette
+- Typography scale
+- Component variants
+
+#### Responsive Breakpoints
+- `xs` - Extra small devices
+- `sm` - Small devices
+- `md` - Medium devices
+- `lg` - Large devices
+- `xl` - Extra large devices
+
+#### Component Variants
+- `primary` - Main brand color
+- `secondary` - Accent color
+- `success` - Success states
+- `warning` - Warning states
+- `error` - Error states
+- `info` - Information states
+
+### Development Guidelines
+
+#### Component Creation
+1. Use Material UI components as base
+2. Follow Material Design principles
+3. Implement responsive design
+4. Use TypeScript for type safety
+5. Follow consistent naming conventions
+
+#### Styling
+1. Use theme values for colors/spacing
+2. Leverage MUI's sx prop for styling
+3. Use breakpoints for responsive design
+4. Follow Material Design guidelines
+
+#### Navigation
+1. Use React Router for routing
+2. Implement consistent navigation patterns
+3. Use Material UI navigation components
+4. Ensure accessibility compliance
+
+### Future Components
+
+#### Planned Components
+- Order management interface
+- Delivery tracking system
+- User management
+- Settings panel
+- Analytics dashboard
+- Notification system
+
+#### Component Categories
+- **Forms**: Input components, validation
+- **Data Tables**: Order lists, delivery tracking
+- **Charts**: Analytics and reporting
+- **Modals**: Confirmation dialogs, forms
+- **Notifications**: Toast messages, alerts
+
+### Integration Points
+
+#### Backend Integration
+- API client for data fetching
+- Real-time updates via WebSocket
+- Error handling and loading states
+- Authentication integration
+
+#### State Management
+- React hooks for local state
+- Context API for global state
+- Redux Toolkit (if needed)
+- Form state management
+
+#### Testing
+- Jest for unit testing
+- React Testing Library for component testing
+- Material UI testing utilities
+- Accessibility testing
