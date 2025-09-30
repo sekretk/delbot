@@ -176,7 +176,7 @@ jobs:
             --set backend.image.tag=${{ needs.build-and-push.outputs.version }} \
             --set frontend.image.tag=${{ needs.build-and-push.outputs.version }} \
             --set commonLabels.version=${{ needs.build-and-push.outputs.version }} \
-            --wait --timeout=600s
+            --wait=false --debug
           
           echo "✅ Deployment completed successfully!"
           

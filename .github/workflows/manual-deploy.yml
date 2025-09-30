@@ -1,0 +1,338 @@
+name: Manual Deployment
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to deploy (e.g., 0.0.11)'
+        required: true
+        default: '0.0.11'
+        type: string
+      namespace:
+        description: 'Kubernetes namespace'
+        required: false
+        default: 'delbot'
+        type: string
+      debug:
+        description: 'Enable debug mode'
+        required: false
+        default: true
+        type: boolean
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME_BACKEND: ${{ github.repository }}/backend
+  IMAGE_NAME_FRONTEND: ${{ github.repository }}/frontend
+
+jobs:
+  manual-deploy:
+    name: Manual Kubernetes Deployment
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+        
+      - name: Display deployment parameters
+        run: |
+          echo "🎯 **Manual Deployment Parameters**"
+          echo "=================================="
+          echo "📦 Version: ${{ github.event.inputs.version }}"
+          echo "📁 Namespace: ${{ github.event.inputs.namespace }}"
+          echo "🐛 Debug Mode: ${{ github.event.inputs.debug }}"
+          echo ""
+          echo "🐳 Target Images:"
+          echo "Backend:  ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_BACKEND }}:${{ github.event.inputs.version }}"
+          echo "Frontend: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_FRONTEND }}:${{ github.event.inputs.version }}"
+        
+      - name: Verify Docker images exist
+        run: |
+          echo "🔍 Verifying Docker images exist in registry..."
+          
+          BACKEND_IMAGE="${{ env.REGISTRY }}/${{ env.IMAGE_NAME_BACKEND }}:${{ github.event.inputs.version }}"
+          FRONTEND_IMAGE="${{ env.REGISTRY }}/${{ env.IMAGE_NAME_FRONTEND }}:${{ github.event.inputs.version }}"
+          
+          echo "Checking backend image: $BACKEND_IMAGE"
+          if docker manifest inspect "$BACKEND_IMAGE" >/dev/null 2>&1; then
+            echo "✅ Backend image exists and is accessible"
+          else
+            echo "❌ Backend image not found or not accessible"
+            echo "Please ensure the image exists: $BACKEND_IMAGE"
+            exit 1
+          fi
+          
+          echo "Checking frontend image: $FRONTEND_IMAGE"
+          if docker manifest inspect "$FRONTEND_IMAGE" >/dev/null 2>&1; then
+            echo "✅ Frontend image exists and is accessible"
+          else
+            echo "❌ Frontend image not found or not accessible"
+            echo "Please ensure the image exists: $FRONTEND_IMAGE"
+            exit 1
+          fi
+          
+      - name: Install kubectl
+        run: |
+          echo "⚙️ Installing kubectl..."
+          curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
+          chmod +x kubectl
+          sudo mv kubectl /usr/local/bin/
+          echo "✅ kubectl installed successfully!"
+          kubectl version --client
+          
+      - name: Install Helm
+        run: |
+          echo "⚙️ Installing Helm..."
+          curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
+          echo "✅ Helm installed successfully!"
+          helm version
+          
+      - name: Setup Kubernetes cluster access
+        env:
+          KUBE_CONFIG: ${{ secrets.KUBE_CONFIG }}
+        run: |
+          if [ -n "$KUBE_CONFIG" ]; then
+            echo "🔧 Setting up Kubernetes cluster access..."
+            mkdir -p ~/.kube
+            echo "$KUBE_CONFIG" | base64 -d > ~/.kube/config
+            chmod 600 ~/.kube/config
+            
+            # Test cluster connectivity
+            if kubectl cluster-info > /dev/null 2>&1; then
+              echo "✅ Successfully connected to Kubernetes cluster"
+              echo "KUBE_ACCESS=true" >> $GITHUB_ENV
+            else
+              echo "❌ Failed to connect to Kubernetes cluster"
+              echo "KUBE_ACCESS=false" >> $GITHUB_ENV
+              exit 1
+            fi
+          else
+            echo "❌ KUBE_CONFIG secret not configured"
+            exit 1
+          fi
+          
+      - name: Pre-deployment cluster inspection
+        if: env.KUBE_ACCESS == 'true'
+        run: |
+          echo "🔍 Pre-deployment cluster inspection..."
+          echo "======================================"
+          
+          NAMESPACE="${{ github.event.inputs.namespace }}"
+          
+          echo "📊 Cluster nodes:"
+          kubectl get nodes -o wide || true
+          
+          echo ""
+          echo "📁 Available namespaces:"
+          kubectl get namespaces || true
+          
+          if kubectl get namespace "$NAMESPACE" >/dev/null 2>&1; then
+            echo ""
+            echo "✅ Namespace '$NAMESPACE' exists"
+            
+            echo ""
+            echo "📋 Current pods in '$NAMESPACE':"
+            kubectl get pods -n "$NAMESPACE" -o wide || true
+            
+            echo ""
+            echo "📋 Current services in '$NAMESPACE':"
+            kubectl get services -n "$NAMESPACE" || true
+            
+            echo ""
+            echo "📋 Current deployments in '$NAMESPACE':"
+            kubectl get deployments -n "$NAMESPACE" -o wide || true
+            
+            echo ""
+            echo "📋 Current Helm releases in '$NAMESPACE':"
+            helm list -n "$NAMESPACE" || true
+          else
+            echo "⚠️ Namespace '$NAMESPACE' does not exist - will be created by Helm"
+          fi
+          
+      - name: Deploy to Kubernetes with Helm (step by step)
+        if: env.KUBE_ACCESS == 'true'
+        run: |
+          echo "🚀 Deploying to Kubernetes step by step..."
+          echo "=========================================="
+          
+          NAMESPACE="${{ github.event.inputs.namespace }}"
+          VERSION="${{ github.event.inputs.version }}"
+          DEBUG_FLAG=""
+          
+          if [ "${{ github.event.inputs.debug }}" == "true" ]; then
+            DEBUG_FLAG="--debug"
+          fi
+          
+          echo "📋 Deployment Configuration:"
+          echo "Namespace: $NAMESPACE"
+          echo "Version: $VERSION"
+          echo "Debug: ${{ github.event.inputs.debug }}"
+          echo "Chart Path: ./delbot-chart"
+          echo ""
+          
+          # Step 1: Validate chart
+          echo "Step 1: Validating Helm chart..."
+          helm lint ./delbot-chart || {
+            echo "❌ Helm chart validation failed"
+            exit 1
+          }
+          echo "✅ Helm chart validation passed"
+          echo ""
+          
+          # Step 2: Template generation (to verify configuration)
+          echo "Step 2: Generating Helm templates..."
+          helm template delbot ./delbot-chart \
+            --namespace "$NAMESPACE" \
+            --set backend.image.tag="$VERSION" \
+            --set frontend.image.tag="$VERSION" \
+            --set commonLabels.version="$VERSION" \
+            $DEBUG_FLAG > /tmp/delbot-manifest.yaml
+          echo "✅ Helm templates generated successfully"
+          
+          if [ "${{ github.event.inputs.debug }}" == "true" ]; then
+            echo "Generated manifest preview (first 50 lines):"
+            head -50 /tmp/delbot-manifest.yaml
+            echo "... (truncated)"
+            echo ""
+          fi
+          
+          # Step 3: Actual deployment (without wait)
+          echo "Step 3: Executing Helm deployment..."
+          helm upgrade --install delbot ./delbot-chart \
+            --namespace "$NAMESPACE" \
+            --create-namespace \
+            --set backend.image.tag="$VERSION" \
+            --set frontend.image.tag="$VERSION" \
+            --set commonLabels.version="$VERSION" \
+            --wait=false \
+            $DEBUG_FLAG
+            
+          if [ $? -eq 0 ]; then
+            echo "✅ Helm deployment command executed successfully"
+          else
+            echo "❌ Helm deployment command failed"
+            exit 1
+          fi
+          
+      - name: Monitor deployment progress
+        if: env.KUBE_ACCESS == 'true'
+        run: |
+          echo "⏳ Monitoring deployment progress..."
+          echo "==================================="
+          
+          NAMESPACE="${{ github.event.inputs.namespace }}"
+          
+          # Wait a moment for resources to be created
+          sleep 10
+          
+          echo "📊 Deployment status:"
+          kubectl get deployments -n "$NAMESPACE" -o wide || true
+          
+          echo ""
+          echo "📋 Pod status:"
+          kubectl get pods -n "$NAMESPACE" -o wide || true
+          
+          echo ""
+          echo "📋 Service status:"
+          kubectl get services -n "$NAMESPACE" || true
+          
+          echo ""
+          echo "📋 Recent events:"
+          kubectl get events -n "$NAMESPACE" --sort-by='.lastTimestamp' | tail -20 || true
+          
+          # Try to wait for deployments with shorter timeout
+          echo ""
+          echo "⏳ Waiting for deployments (with 180s timeout)..."
+          
+          if kubectl wait --for=condition=available --timeout=180s deployment/delbot-backend -n "$NAMESPACE" 2>/dev/null; then
+            echo "✅ Backend deployment is ready"
+          else
+            echo "⚠️ Backend deployment not ready within timeout"
+            kubectl describe deployment delbot-backend -n "$NAMESPACE" || true
+          fi
+          
+          if kubectl wait --for=condition=available --timeout=180s deployment/delbot-frontend -n "$NAMESPACE" 2>/dev/null; then
+            echo "✅ Frontend deployment is ready"
+          else
+            echo "⚠️ Frontend deployment not ready within timeout"
+            kubectl describe deployment delbot-frontend -n "$NAMESPACE" || true
+          fi
+          
+      - name: Post-deployment inspection
+        if: always() && env.KUBE_ACCESS == 'true'
+        run: |
+          echo "🔍 Post-deployment inspection..."
+          echo "==============================="
+          
+          NAMESPACE="${{ github.event.inputs.namespace }}"
+          
+          echo "📊 Final deployment status:"
+          kubectl get all -n "$NAMESPACE" || true
+          
+          echo ""
+          echo "📋 Pod details:"
+          kubectl describe pods -n "$NAMESPACE" | grep -E "(Name:|Status:|Image:|Events:)" || true
+          
+          echo ""
+          echo "📋 Recent events (last 10):"
+          kubectl get events -n "$NAMESPACE" --sort-by='.lastTimestamp' | tail -10 || true
+          
+          echo ""
+          echo "🏷️ Deployed image versions:"
+          kubectl get deployment delbot-backend -n "$NAMESPACE" -o jsonpath='{.spec.template.spec.containers[0].image}' 2>/dev/null && echo " (Backend)" || echo "Backend deployment not found"
+          kubectl get deployment delbot-frontend -n "$NAMESPACE" -o jsonpath='{.spec.template.spec.containers[0].image}' 2>/dev/null && echo " (Frontend)" || echo "Frontend deployment not found"
+          
+          echo ""
+          echo "📋 Helm release status:"
+          helm status delbot -n "$NAMESPACE" || echo "Helm release not found"
+          
+      - name: Create deployment summary
+        if: always()
+        run: |
+          echo "📋 **Manual Deployment Summary**" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 🎯 Deployment Parameters" >> $GITHUB_STEP_SUMMARY
+          echo "- **Version:** ${{ github.event.inputs.version }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Namespace:** ${{ github.event.inputs.namespace }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Debug Mode:** ${{ github.event.inputs.debug }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          if [ "${{ env.KUBE_ACCESS }}" == "true" ]; then
+            echo "- [x] ✅ Cluster connectivity: **SUCCESS**" >> $GITHUB_STEP_SUMMARY
+            
+            # Try to determine if deployment was successful
+            NAMESPACE="${{ github.event.inputs.namespace }}"
+            if kubectl get deployment delbot-backend -n "$NAMESPACE" >/dev/null 2>&1 && kubectl get deployment delbot-frontend -n "$NAMESPACE" >/dev/null 2>&1; then
+              echo "- [x] ✅ Deployment executed: **SUCCESS**" >> $GITHUB_STEP_SUMMARY
+            else
+              echo "- [ ] ❌ Deployment executed: **FAILED**" >> $GITHUB_STEP_SUMMARY
+            fi
+          else
+            echo "- [ ] ❌ Cluster connectivity: **FAILED**" >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 🐳 Target Images" >> $GITHUB_STEP_SUMMARY
+          echo "- **Backend:** \`${{ env.REGISTRY }}/${{ env.IMAGE_NAME_BACKEND }}:${{ github.event.inputs.version }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **Frontend:** \`${{ env.REGISTRY }}/${{ env.IMAGE_NAME_FRONTEND }}:${{ github.event.inputs.version }}\`" >> $GITHUB_STEP_SUMMARY
+          
+          if [ "${{ env.KUBE_ACCESS }}" == "true" ]; then
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "### 🔍 Troubleshooting Commands" >> $GITHUB_STEP_SUMMARY
+            echo "\`\`\`bash" >> $GITHUB_STEP_SUMMARY
+            echo "# Check deployment status" >> $GITHUB_STEP_SUMMARY
+            echo "kubectl get pods -n ${{ github.event.inputs.namespace }}" >> $GITHUB_STEP_SUMMARY
+            echo "kubectl get deployments -n ${{ github.event.inputs.namespace }}" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "# Check logs" >> $GITHUB_STEP_SUMMARY
+            echo "kubectl logs -l app=delbot-backend -n ${{ github.event.inputs.namespace }}" >> $GITHUB_STEP_SUMMARY
+            echo "kubectl logs -l app=delbot-frontend -n ${{ github.event.inputs.namespace }}" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "# Check events" >> $GITHUB_STEP_SUMMARY
+            echo "kubectl get events -n ${{ github.event.inputs.namespace }} --sort-by='.lastTimestamp'" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "# Helm status" >> $GITHUB_STEP_SUMMARY
+            echo "helm status delbot -n ${{ github.event.inputs.namespace }}" >> $GITHUB_STEP_SUMMARY
+            echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          fi
