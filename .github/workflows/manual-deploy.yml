@@ -81,12 +81,16 @@ jobs:
           echo "✅ kubectl installed successfully!"
           kubectl version --client
           
-      - name: Install Helm
+      - name: Install Helm and jq
         run: |
           echo "⚙️ Installing Helm..."
           curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
           echo "✅ Helm installed successfully!"
           helm version
+          
+          echo "⚙️ Installing jq for JSON parsing..."
+          sudo apt-get update && sudo apt-get install -y jq
+          echo "✅ jq installed successfully!"
           
       - name: Setup Kubernetes cluster access
         env:
@@ -148,6 +152,63 @@ jobs:
             helm list -n "$NAMESPACE" || true
           else
             echo "⚠️ Namespace '$NAMESPACE' does not exist - will be created by Helm"
+          fi
+          
+      - name: Clean up namespace conflicts
+        if: env.KUBE_ACCESS == 'true'
+        run: |
+          echo "🧹 Checking and cleaning up namespace conflicts..."
+          echo "================================================="
+          
+          NAMESPACE="${{ github.event.inputs.namespace }}"
+          
+          # Check if namespace exists
+          if kubectl get namespace "$NAMESPACE" >/dev/null 2>&1; then
+            echo "📁 Namespace '$NAMESPACE' exists"
+            
+            # Check for conflicting Helm metadata
+            HELM_RELEASE_NS=$(kubectl get namespace "$NAMESPACE" -o jsonpath='{.metadata.annotations.meta\.helm\.sh/release-namespace}' 2>/dev/null || echo "")
+            HELM_RELEASE_NAME=$(kubectl get namespace "$NAMESPACE" -o jsonpath='{.metadata.annotations.meta\.helm\.sh/release-name}' 2>/dev/null || echo "")
+            
+            if [ -n "$HELM_RELEASE_NS" ] && [ "$HELM_RELEASE_NS" != "$NAMESPACE" ]; then
+              echo "⚠️ Found conflicting Helm metadata:"
+              echo "   Release namespace in annotation: $HELM_RELEASE_NS"
+              echo "   Target namespace: $NAMESPACE"
+              echo "   Release name: $HELM_RELEASE_NAME"
+              
+              echo "🧹 Cleaning up conflicting Helm annotations..."
+              kubectl annotate namespace "$NAMESPACE" meta.helm.sh/release-namespace- 2>/dev/null || true
+              kubectl annotate namespace "$NAMESPACE" meta.helm.sh/release-name- 2>/dev/null || true
+              kubectl label namespace "$NAMESPACE" app.kubernetes.io/managed-by- 2>/dev/null || true
+              
+              echo "✅ Conflicting annotations removed"
+            else
+              echo "✅ No conflicting Helm metadata found"
+            fi
+            
+            # Check for existing Helm releases in different namespaces
+            echo ""
+            echo "🔍 Checking for existing 'delbot' releases in other namespaces..."
+            EXISTING_RELEASES=$(helm list --all-namespaces -q | grep "^delbot$" || echo "")
+            
+            if [ -n "$EXISTING_RELEASES" ]; then
+              echo "⚠️ Found existing 'delbot' releases:"
+              helm list --all-namespaces | grep delbot || true
+              
+              echo ""
+              echo "🗑️ Uninstalling conflicting releases..."
+              # Uninstall any delbot releases in other namespaces
+              helm list --all-namespaces --output json | jq -r '.[] | select(.name == "delbot") | "\(.namespace)"' | while read -r ns; do
+                if [ "$ns" != "$NAMESPACE" ]; then
+                  echo "Uninstalling delbot release from namespace: $ns"
+                  helm uninstall delbot -n "$ns" || echo "Failed to uninstall from $ns"
+                fi
+              done
+            else
+              echo "✅ No conflicting releases found"
+            fi
+          else
+            echo "✅ Namespace '$NAMESPACE' does not exist - will be created fresh"
           fi
           
       - name: Deploy to Kubernetes with Helm (step by step)
