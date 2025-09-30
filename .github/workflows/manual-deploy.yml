@@ -91,7 +91,6 @@ jobs:
           echo "⚙️ Installing jq for JSON parsing..."
           sudo apt-get update && sudo apt-get install -y jq
           echo "✅ jq installed successfully!"
-          
       - name: Setup Kubernetes cluster access
         env:
           KUBE_CONFIG: ${{ secrets.KUBE_CONFIG }}
