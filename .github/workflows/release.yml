@@ -136,12 +136,16 @@ jobs:
           echo "✅ kubectl installed successfully!"
           kubectl version --client
           
-      - name: Install Helm
+      - name: Install Helm and jq
         run: |
           echo "⚙️ Installing Helm..."
           curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
           echo "✅ Helm installed successfully!"
           helm version
+          
+          echo "⚙️ Installing jq for JSON parsing..."
+          sudo apt-get update && sudo apt-get install -y jq
+          echo "✅ jq installed successfully!"
           
       - name: Setup Kubernetes cluster access
         env:
@@ -166,35 +170,228 @@ jobs:
             echo "KUBE_ACCESS=false" >> $GITHUB_ENV
           fi
           
-      - name: Deploy to Kubernetes with Helm
+      - name: Pre-deployment cluster inspection
         if: env.KUBE_ACCESS == 'true'
         run: |
-          echo "🚀 Deploying DelBot version ${{ needs.build-and-push.outputs.version }} to Kubernetes..."
+          echo "🔍 Pre-deployment cluster inspection..."
+          echo "======================================"
           
-          # Deploy using Helm with images from build job
+          NAMESPACE="delbot"
+          
+          echo "📊 Cluster nodes:"
+          kubectl get nodes -o wide || true
+          
+          echo ""
+          echo "📁 Available namespaces:"
+          kubectl get namespaces || true
+          
+          if kubectl get namespace "$NAMESPACE" >/dev/null 2>&1; then
+            echo ""
+            echo "✅ Namespace '$NAMESPACE' exists"
+            
+            echo ""
+            echo "📋 Current pods in '$NAMESPACE':"
+            kubectl get pods -n "$NAMESPACE" -o wide || true
+            
+            echo ""
+            echo "📋 Current services in '$NAMESPACE':"
+            kubectl get services -n "$NAMESPACE" || true
+            
+            echo ""
+            echo "📋 Current deployments in '$NAMESPACE':"
+            kubectl get deployments -n "$NAMESPACE" -o wide || true
+            
+            echo ""
+            echo "📋 Current Helm releases in '$NAMESPACE':"
+            helm list -n "$NAMESPACE" || true
+          else
+            echo "⚠️ Namespace '$NAMESPACE' does not exist - will be created by Helm"
+          fi
+          
+      - name: Clean up namespace conflicts
+        if: env.KUBE_ACCESS == 'true'
+        run: |
+          echo "🧹 Checking and cleaning up namespace conflicts..."
+          echo "================================================="
+          
+          NAMESPACE="delbot"
+          
+          # Check if namespace exists
+          if kubectl get namespace "$NAMESPACE" >/dev/null 2>&1; then
+            echo "📁 Namespace '$NAMESPACE' exists"
+            
+            # Check for conflicting Helm metadata
+            HELM_RELEASE_NS=$(kubectl get namespace "$NAMESPACE" -o jsonpath='{.metadata.annotations.meta\.helm\.sh/release-namespace}' 2>/dev/null || echo "")
+            HELM_RELEASE_NAME=$(kubectl get namespace "$NAMESPACE" -o jsonpath='{.metadata.annotations.meta\.helm\.sh/release-name}' 2>/dev/null || echo "")
+            
+            if [ -n "$HELM_RELEASE_NS" ] && [ "$HELM_RELEASE_NS" != "$NAMESPACE" ]; then
+              echo "⚠️ Found conflicting Helm metadata:"
+              echo "   Release namespace in annotation: $HELM_RELEASE_NS"
+              echo "   Target namespace: $NAMESPACE"
+              echo "   Release name: $HELM_RELEASE_NAME"
+              
+              echo "🧹 Cleaning up conflicting Helm annotations..."
+              kubectl annotate namespace "$NAMESPACE" meta.helm.sh/release-namespace- 2>/dev/null || true
+              kubectl annotate namespace "$NAMESPACE" meta.helm.sh/release-name- 2>/dev/null || true
+              kubectl label namespace "$NAMESPACE" app.kubernetes.io/managed-by- 2>/dev/null || true
+              
+              echo "✅ Conflicting annotations removed"
+            else
+              echo "✅ No conflicting Helm metadata found"
+            fi
+            
+            # Check for existing Helm releases in different namespaces
+            echo ""
+            echo "🔍 Checking for existing 'delbot' releases in other namespaces..."
+            EXISTING_RELEASES=$(helm list --all-namespaces -q | grep "^delbot$" || echo "")
+            
+            if [ -n "$EXISTING_RELEASES" ]; then
+              echo "⚠️ Found existing 'delbot' releases:"
+              helm list --all-namespaces | grep delbot || true
+              
+              echo ""
+              echo "🗑️ Uninstalling conflicting releases..."
+              # Uninstall any delbot releases in other namespaces
+              helm list --all-namespaces --output json | jq -r '.[] | select(.name == "delbot") | "\(.namespace)"' | while read -r ns; do
+                if [ "$ns" != "$NAMESPACE" ]; then
+                  echo "Uninstalling delbot release from namespace: $ns"
+                  helm uninstall delbot -n "$ns" || echo "Failed to uninstall from $ns"
+                fi
+              done
+            else
+              echo "✅ No conflicting releases found"
+            fi
+          else
+            echo "✅ Namespace '$NAMESPACE' does not exist - will be created fresh"
+          fi
+          
+      - name: Deploy to Kubernetes with Helm (step by step)
+        if: env.KUBE_ACCESS == 'true'
+        run: |
+          echo "🚀 Deploying to Kubernetes step by step..."
+          echo "=========================================="
+          
+          NAMESPACE="delbot"
+          VERSION="${{ needs.build-and-push.outputs.version }}"
+          
+          echo "📋 Deployment Configuration:"
+          echo "Namespace: $NAMESPACE"
+          echo "Version: $VERSION"
+          echo "Chart Path: ./delbot-chart"
+          echo ""
+          
+          # Step 1: Validate chart
+          echo "Step 1: Validating Helm chart..."
+          helm lint ./delbot-chart || {
+            echo "❌ Helm chart validation failed"
+            exit 1
+          }
+          echo "✅ Helm chart validation passed"
+          echo ""
+          
+          # Step 2: Template generation (to verify configuration)
+          echo "Step 2: Generating Helm templates..."
+          helm template delbot ./delbot-chart \
+            --namespace "$NAMESPACE" \
+            --set backend.image.tag="$VERSION" \
+            --set frontend.image.tag="$VERSION" \
+            --set commonLabels.version="$VERSION" \
+            --debug > /tmp/delbot-manifest.yaml
+          echo "✅ Helm templates generated successfully"
+          
+          echo "Generated manifest preview (first 50 lines):"
+          head -50 /tmp/delbot-manifest.yaml
+          echo "... (truncated)"
+          echo ""
+          
+          # Step 3: Actual deployment (without wait)
+          echo "Step 3: Executing Helm deployment..."
           helm upgrade --install delbot ./delbot-chart \
-            --set backend.image.tag=${{ needs.build-and-push.outputs.version }} \
-            --set frontend.image.tag=${{ needs.build-and-push.outputs.version }} \
-            --set commonLabels.version=${{ needs.build-and-push.outputs.version }} \
-            --wait=false --debug
+            --namespace "$NAMESPACE" \
+            --set backend.image.tag="$VERSION" \
+            --set frontend.image.tag="$VERSION" \
+            --set commonLabels.version="$VERSION" \
+            --wait=false \
+            --debug
+            
+          if [ $? -eq 0 ]; then
+            echo "✅ Helm deployment command executed successfully"
+          else
+            echo "❌ Helm deployment command failed"
+            exit 1
+          fi
           
-          echo "✅ Deployment completed successfully!"
+      - name: Monitor deployment progress
+        if: env.KUBE_ACCESS == 'true'
+        run: |
+          echo "⏳ Monitoring deployment progress..."
+          echo "==================================="
           
-          # Wait for pods to be ready
-          echo "⏳ Waiting for all pods to be ready..."
-          kubectl wait --for=condition=available --timeout=300s deployment/delbot-backend -n delbot
-          kubectl wait --for=condition=available --timeout=300s deployment/delbot-frontend -n delbot
+          NAMESPACE="delbot"
           
-          echo "✅ All pods are ready!"
+          # Wait a moment for resources to be created
+          sleep 10
           
-          # Show deployment status
-          echo "📊 Deployment Status:"
-          kubectl get pods -n delbot
+          echo "📊 Deployment status:"
+          kubectl get deployments -n "$NAMESPACE" -o wide || true
           
-          # Show running versions
-          echo "🏷️ Deployed Versions:"
-          echo "Backend: $(kubectl get deployment delbot-backend -n delbot -o jsonpath='{.spec.template.spec.containers[0].image}')"
-          echo "Frontend: $(kubectl get deployment delbot-frontend -n delbot -o jsonpath='{.spec.template.spec.containers[0].image}')"
+          echo ""
+          echo "📋 Pod status:"
+          kubectl get pods -n "$NAMESPACE" -o wide || true
+          
+          echo ""
+          echo "📋 Service status:"
+          kubectl get services -n "$NAMESPACE" || true
+          
+          echo ""
+          echo "📋 Recent events:"
+          kubectl get events -n "$NAMESPACE" --sort-by='.lastTimestamp' | tail -20 || true
+          
+          # Try to wait for deployments with shorter timeout
+          echo ""
+          echo "⏳ Waiting for deployments (with 180s timeout)..."
+          
+          if kubectl wait --for=condition=available --timeout=180s deployment/delbot-backend -n "$NAMESPACE" 2>/dev/null; then
+            echo "✅ Backend deployment is ready"
+          else
+            echo "⚠️ Backend deployment not ready within timeout"
+            kubectl describe deployment delbot-backend -n "$NAMESPACE" || true
+          fi
+          
+          if kubectl wait --for=condition=available --timeout=180s deployment/delbot-frontend -n "$NAMESPACE" 2>/dev/null; then
+            echo "✅ Frontend deployment is ready"
+          else
+            echo "⚠️ Frontend deployment not ready within timeout"
+            kubectl describe deployment delbot-frontend -n "$NAMESPACE" || true
+          fi
+          
+      - name: Post-deployment inspection
+        if: always() && env.KUBE_ACCESS == 'true'
+        run: |
+          echo "🔍 Post-deployment inspection..."
+          echo "==============================="
+          
+          NAMESPACE="delbot"
+          
+          echo "📊 Final deployment status:"
+          kubectl get all -n "$NAMESPACE" || true
+          
+          echo ""
+          echo "📋 Pod details:"
+          kubectl describe pods -n "$NAMESPACE" | grep -E "(Name:|Status:|Image:|Events:)" || true
+          
+          echo ""
+          echo "📋 Recent events (last 10):"
+          kubectl get events -n "$NAMESPACE" --sort-by='.lastTimestamp' | tail -10 || true
+          
+          echo ""
+          echo "🏷️ Deployed image versions:"
+          kubectl get deployment delbot-backend -n "$NAMESPACE" -o jsonpath='{.spec.template.spec.containers[0].image}' 2>/dev/null && echo " (Backend)" || echo "Backend deployment not found"
+          kubectl get deployment delbot-frontend -n "$NAMESPACE" -o jsonpath='{.spec.template.spec.containers[0].image}' 2>/dev/null && echo " (Frontend)" || echo "Frontend deployment not found"
+          
+          echo ""
+          echo "📋 Helm release status:"
+          helm status delbot -n "$NAMESPACE" || echo "Helm release not found"
           
       - name: Create release summary
         run: |
