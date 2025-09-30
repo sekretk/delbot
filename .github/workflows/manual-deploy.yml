@@ -261,7 +261,6 @@ jobs:
           echo "Step 3: Executing Helm deployment..."
           helm upgrade --install delbot ./delbot-chart \
             --namespace "$NAMESPACE" \
-            --create-namespace \
             --set backend.image.tag="$VERSION" \
             --set frontend.image.tag="$VERSION" \
             --set commonLabels.version="$VERSION" \
