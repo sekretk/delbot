@@ -81,17 +81,24 @@ jobs:
           echo "✅ kubectl installed successfully!"
           kubectl version --client
           
+<<<<<<< HEAD
       - name: Install Helm and jq
+=======
+      - name: Install Helm
+>>>>>>> main
         run: |
           echo "⚙️ Installing Helm..."
           curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
           echo "✅ Helm installed successfully!"
           helm version
           
+<<<<<<< HEAD
           echo "⚙️ Installing jq for JSON parsing..."
           sudo apt-get update && sudo apt-get install -y jq
           echo "✅ jq installed successfully!"
           
+=======
+>>>>>>> main
       - name: Setup Kubernetes cluster access
         env:
           KUBE_CONFIG: ${{ secrets.KUBE_CONFIG }}
