@@ -306,7 +306,53 @@ jobs:
             kubectl describe deployment delbot-frontend -n "$NAMESPACE" || true
           fi
           
-      - name: Post-deployment inspection
+      - name: Extract successful deployment configuration
+        if: env.KUBE_ACCESS == 'true'
+        run: |
+          echo "🔍 Extracting configuration from successful deployment..."
+          echo "========================================================"
+          
+          NAMESPACE="${{ github.event.inputs.namespace }}"
+          
+          echo "1. 📁 Namespace Configuration:"
+          kubectl get namespace "$NAMESPACE" -o yaml | grep -A 20 -E "(labels|annotations):" || true
+          
+          echo ""
+          echo "2. 🏇 Helm Release Information:"
+          helm list -n "$NAMESPACE" || true
+          
+          echo ""
+          echo "3. 📚 Helm Release Values (if exists):"
+          if helm list -n "$NAMESPACE" | grep -q delbot; then
+            helm get values delbot -n "$NAMESPACE" || true
+          fi
+          
+          echo ""
+          echo "4. 📊 Helm Release Manifest:"
+          if helm list -n "$NAMESPACE" | grep -q delbot; then
+            helm get manifest delbot -n "$NAMESPACE" | head -50 || true
+            echo "... (truncated, showing first 50 lines)"
+          fi
+          
+          echo ""
+          echo "5. 🌐 Ingress Configuration:"
+          kubectl get ingress -n "$NAMESPACE" -o yaml || true
+          
+          echo ""
+          echo "6. 🚀 Deployment Status:"
+          kubectl get deployments -n "$NAMESPACE" -o wide || true
+          
+          echo ""
+          echo "7. 🔌 Services Configuration:"
+          kubectl get services -n "$NAMESPACE" -o wide || true
+          
+          echo ""
+          echo "8. 📋 Pod Details:"
+          kubectl get pods -n "$NAMESPACE" -o wide || true
+          
+          echo ""
+          echo "9. 🏠 Image Versions Currently Running:"
+          kubectl get deployments -n "$NAMESPACE" -o jsonpath='{range .items[*]}{.metadata.name}{"\t"}{.spec.template.spec.containers[0].image}{"\n"}{end}' || true
         if: always() && env.KUBE_ACCESS == 'true'
         run: |
           echo "🔍 Post-deployment inspection..."
