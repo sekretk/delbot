@@ -265,6 +265,68 @@ jobs:
             echo "✅ Namespace '$NAMESPACE' does not exist - will be created fresh"
           fi
           
+      - name: Clean up namespace conflicts
+        if: env.KUBE_ACCESS == 'true'
+        run: |
+          echo "🧹 Comprehensive namespace cleanup..."
+          echo "===================================="
+          
+          NAMESPACE="delbot"
+          
+          # Check if namespace exists
+          if kubectl get namespace "$NAMESPACE" >/dev/null 2>&1; then
+            echo "📁 Namespace '$NAMESPACE' exists"
+            
+            # Check current Helm metadata
+            HELM_MANAGED_BY=$(kubectl get namespace "$NAMESPACE" -o jsonpath='{.metadata.labels.app\.kubernetes\.io/managed-by}' 2>/dev/null || echo "")
+            HELM_RELEASE_NS=$(kubectl get namespace "$NAMESPACE" -o jsonpath='{.metadata.annotations.meta\.helm\.sh/release-namespace}' 2>/dev/null || echo "")
+            HELM_RELEASE_NAME=$(kubectl get namespace "$NAMESPACE" -o jsonpath='{.metadata.annotations.meta\.helm\.sh/release-name}' 2>/dev/null || echo "")
+            
+            echo "Current Helm metadata:"
+            echo "  Managed by: '$HELM_MANAGED_BY'"
+            echo "  Release namespace: '$HELM_RELEASE_NS'"
+            echo "  Release name: '$HELM_RELEASE_NAME'"
+            
+            # Check if namespace has proper Helm ownership for this release
+            if [ "$HELM_MANAGED_BY" != "Helm" ] || [ "$HELM_RELEASE_NS" != "$NAMESPACE" ] || [ "$HELM_RELEASE_NAME" != "delbot" ]; then
+              echo "⚠️ Namespace lacks proper Helm metadata for 'delbot' release in '$NAMESPACE' namespace"
+              
+              # Add proper Helm metadata
+              echo "🔧 Adding proper Helm metadata..."
+              kubectl label namespace "$NAMESPACE" app.kubernetes.io/managed-by=Helm --overwrite || true
+              kubectl annotate namespace "$NAMESPACE" meta.helm.sh/release-name=delbot --overwrite || true
+              kubectl annotate namespace "$NAMESPACE" meta.helm.sh/release-namespace="$NAMESPACE" --overwrite || true
+              
+              echo "✅ Helm metadata updated"
+            else
+              echo "✅ Namespace already has proper Helm metadata"
+            fi
+            
+            # Check for existing Helm releases in different namespaces
+            echo ""
+            echo "🔍 Checking for existing 'delbot' releases in other namespaces..."
+            EXISTING_RELEASES=$(helm list --all-namespaces -q | grep "^delbot$" || echo "")
+            
+            if [ -n "$EXISTING_RELEASES" ]; then
+              echo "⚠️ Found existing 'delbot' releases:"
+              helm list --all-namespaces | grep delbot || true
+              
+              echo ""
+              echo "🗑️ Uninstalling conflicting releases..."
+              # Uninstall any delbot releases in other namespaces
+              helm list --all-namespaces --output json | jq -r '.[] | select(.name == "delbot") | "\(.namespace)"' | while read -r ns; do
+                if [ "$ns" != "$NAMESPACE" ]; then
+                  echo "Uninstalling delbot release from namespace: $ns"
+                  helm uninstall delbot -n "$ns" || echo "Failed to uninstall from $ns"
+                fi
+              done
+            else
+              echo "✅ No conflicting releases found"
+            fi
+          else
+            echo "✅ Namespace '$NAMESPACE' does not exist - will be created fresh"
+          fi
+          
       - name: Deploy to Kubernetes with Helm (step by step)
         if: env.KUBE_ACCESS == 'true'
         run: |
@@ -308,6 +370,7 @@ jobs:
           echo "Step 3: Executing Helm deployment..."
           helm upgrade --install delbot ./delbot-chart \
             --namespace "$NAMESPACE" \
+            --create-namespace \
             --set backend.image.tag="$VERSION" \
             --set frontend.image.tag="$VERSION" \
             --set commonLabels.version="$VERSION" \
