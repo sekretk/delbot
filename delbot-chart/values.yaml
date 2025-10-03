@@ -12,7 +12,7 @@ backend:
   
   image:
     repository: ghcr.io/sekretk/delbot/backend
-    tag: "0.0.2"  # Default tag, override with --set backend.image.tag=0.0.3
+    tag: "0.0.13"  # Default tag, override with --set backend.image.tag=0.0.3
     pullPolicy: IfNotPresent
   
   service:
@@ -65,7 +65,7 @@ frontend:
   
   image:
     repository: ghcr.io/sekretk/delbot/frontend
-    tag: "0.0.2"  # Default tag, override with --set frontend.image.tag=0.0.3
+    tag: "0.0.13"  # Default tag, override with --set frontend.image.tag=0.0.3
     pullPolicy: IfNotPresent
   
   service:
@@ -125,13 +125,13 @@ frontend:
 # Ingress configuration
 ingress:
   enabled: true
-  className: nginx
+  className: traefik
   annotations:
-    nginx.ingress.kubernetes.io/ssl-redirect: "false"
-    nginx.ingress.kubernetes.io/rate-limit: "100"
-    nginx.ingress.kubernetes.io/rate-limit-window: "1m"
-    # SSL certificate temporarily disabled due to cluster ACME pathType restrictions
-    # cert-manager.io/cluster-issuer: "letsencrypt-fixed"
+    # Traefik SSL configuration
+    traefik.ingress.kubernetes.io/router.tls: "true"
+    traefik.ingress.kubernetes.io/router.tls.certresolver: "letsencrypt-boysthings"
+    # Optional: Add rate limiting (if you have middleware configured)
+    # traefik.ingress.kubernetes.io/router.middlewares: "default-ratelimit@kubernetescrd"
   
   hosts:
     - host: delbot.boysthings.top
@@ -161,12 +161,9 @@ ingress:
               port:
                 number: 3000
   
-  # TLS temporarily disabled - re-enable when cluster ACME issues are resolved
+  # TLS handled automatically by Traefik with letsencrypt-boysthings cert resolver
+  # No need to specify tls section - Traefik will auto-generate certificates
   tls: []
-  # tls:
-  #   - secretName: delbot-tls-secret
-  #     hosts:
-  #       - delbot.boysthings.top
 
 # No image pull secrets needed (public repository)
 imagePullSecrets: []
