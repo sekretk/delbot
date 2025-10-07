@@ -5,6 +5,7 @@ WORKDIR /ws
 # -----------------------------
 # Install Xvfb and necessary X11 libraries for headless Gazebo
 # -----------------------------
+ENV DEBIAN_FRONTEND=noninteractive
 RUN apt-get update && apt-get install -y \
     xvfb \
     x11-apps \
