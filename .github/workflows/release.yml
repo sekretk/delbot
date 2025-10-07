@@ -9,6 +9,7 @@ env:
   REGISTRY: ghcr.io
   IMAGE_NAME_BACKEND: ${{ github.repository }}/backend
   IMAGE_NAME_FRONTEND: ${{ github.repository }}/frontend
+  IMAGE_NAME_ROBOT: ${{ github.repository }}/robot
 
 jobs:
   build-and-push:
@@ -22,6 +23,7 @@ jobs:
       release-date: ${{ steps.version-info.outputs.release-date }}
       backend-image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_BACKEND }}:${{ steps.version-info.outputs.version }}
       frontend-image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_FRONTEND }}:${{ steps.version-info.outputs.version }}
+      robot-image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_ROBOT }}:${{ steps.version-info.outputs.version }}
     
     steps:
       - name: Checkout code
@@ -100,6 +102,22 @@ jobs:
           
           echo "✅ Frontend image pushed successfully!"
           
+      - name: Build and push robot Docker image
+        run: |
+          echo "🤖 Building and pushing robot Docker image..."
+          
+          # Build robot image with version tag (using headless Dockerfile for deployment)
+          docker build -f robot/docker/Dockerfile -t ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_ROBOT }}:${{ steps.version-info.outputs.version }} robot/
+          
+          # Tag as latest
+          docker tag ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_ROBOT }}:${{ steps.version-info.outputs.version }} ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_ROBOT }}:latest
+          
+          # Push both tags
+          docker push ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_ROBOT }}:${{ steps.version-info.outputs.version }}
+          docker push ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_ROBOT }}:latest
+          
+          echo "✅ Robot image pushed successfully!"
+          
       - name: Create build summary
         run: |
           echo "🎉 **Build & Push Complete!**" >> $GITHUB_STEP_SUMMARY
@@ -112,6 +130,10 @@ jobs:
           echo "**Frontend:**" >> $GITHUB_STEP_SUMMARY
           echo "- [\`${{ env.REGISTRY }}/${{ env.IMAGE_NAME_FRONTEND }}:${{ steps.version-info.outputs.version }}\`](https://github.com/${{ github.repository }}/pkgs/container/frontend)" >> $GITHUB_STEP_SUMMARY
           echo "- [\`${{ env.REGISTRY }}/${{ env.IMAGE_NAME_FRONTEND }}:latest\`](https://github.com/${{ github.repository }}/pkgs/container/frontend)" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Robot (ROS2 Nav2):**" >> $GITHUB_STEP_SUMMARY
+          echo "- [\`${{ env.REGISTRY }}/${{ env.IMAGE_NAME_ROBOT }}:${{ steps.version-info.outputs.version }}\`](https://github.com/${{ github.repository }}/pkgs/container/robot)" >> $GITHUB_STEP_SUMMARY
+          echo "- [\`${{ env.REGISTRY }}/${{ env.IMAGE_NAME_ROBOT }}:latest\`](https://github.com/${{ github.repository }}/pkgs/container/robot)" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "✅ **Images ready for deployment**" >> $GITHUB_STEP_SUMMARY
 
@@ -491,6 +513,10 @@ jobs:
           echo "- [\`${{ needs.build-and-push.outputs.frontend-image }}\`](https://github.com/${{ github.repository }}/pkgs/container/frontend)" >> $GITHUB_STEP_SUMMARY
           echo "- [\`${{ env.REGISTRY }}/${{ env.IMAGE_NAME_FRONTEND }}:latest\`](https://github.com/${{ github.repository }}/pkgs/container/frontend)" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Robot (ROS2 Nav2):**" >> $GITHUB_STEP_SUMMARY
+          echo "- [\`${{ needs.build-and-push.outputs.robot-image }}\`](https://github.com/${{ github.repository }}/pkgs/container/robot)" >> $GITHUB_STEP_SUMMARY
+          echo "- [\`${{ env.REGISTRY }}/${{ env.IMAGE_NAME_ROBOT }}:latest\`](https://github.com/${{ github.repository }}/pkgs/container/robot)" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
           if [ "${{ env.KUBE_ACCESS }}" == "true" ]; then
             echo "### 🚀 Live Application" >> $GITHUB_STEP_SUMMARY
             echo "**DelBot ${{ needs.build-and-push.outputs.version }} is now live!**" >> $GITHUB_STEP_SUMMARY
@@ -551,9 +577,10 @@ jobs:
             
             ${DEPLOY_STATUS}${APP_LINKS}
             
-            🐳 *Docker Images Published:*
+            🤖 *Docker Images Published:*
             • \`${{ needs.build-and-push.outputs.backend-image }}\`
             • \`${{ needs.build-and-push.outputs.frontend-image }}\`
+            • \`${{ needs.build-and-push.outputs.robot-image }}\` (ROS2 Nav2)
             
             📋 *Release Details:*
             [View on GitHub](https://github.com/${{ github.repository }}/releases/tag/${{ github.ref_name }})
