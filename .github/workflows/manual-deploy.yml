@@ -23,6 +23,7 @@ env:
   REGISTRY: ghcr.io
   IMAGE_NAME_BACKEND: ${{ github.repository }}/backend
   IMAGE_NAME_FRONTEND: ${{ github.repository }}/frontend
+  IMAGE_NAME_ROBOT: ${{ github.repository }}/robot
 
 jobs:
   manual-deploy:
@@ -46,6 +47,7 @@ jobs:
           echo "🐳 Target Images:"
           echo "Backend:  ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_BACKEND }}:${{ github.event.inputs.version }}"
           echo "Frontend: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_FRONTEND }}:${{ github.event.inputs.version }}"
+          echo "Robot:    ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_ROBOT }}:${{ github.event.inputs.version }}"
         
       - name: Verify Docker images exist
         run: |
@@ -53,6 +55,7 @@ jobs:
           
           BACKEND_IMAGE="${{ env.REGISTRY }}/${{ env.IMAGE_NAME_BACKEND }}:${{ github.event.inputs.version }}"
           FRONTEND_IMAGE="${{ env.REGISTRY }}/${{ env.IMAGE_NAME_FRONTEND }}:${{ github.event.inputs.version }}"
+          ROBOT_IMAGE="${{ env.REGISTRY }}/${{ env.IMAGE_NAME_ROBOT }}:${{ github.event.inputs.version }}"
           
           echo "Checking backend image: $BACKEND_IMAGE"
           if docker manifest inspect "$BACKEND_IMAGE" >/dev/null 2>&1; then
@@ -69,6 +72,15 @@ jobs:
           else
             echo "❌ Frontend image not found or not accessible"
             echo "Please ensure the image exists: $FRONTEND_IMAGE"
+            exit 1
+          fi
+          
+          echo "Checking robot image: $ROBOT_IMAGE"
+          if docker manifest inspect "$ROBOT_IMAGE" >/dev/null 2>&1; then
+            echo "✅ Robot image exists and is accessible"
+          else
+            echo "❌ Robot image not found or not accessible"
+            echo "Please ensure the image exists: $ROBOT_IMAGE"
             exit 1
           fi
           
@@ -409,6 +421,7 @@ jobs:
           echo "### 🐳 Target Images" >> $GITHUB_STEP_SUMMARY
           echo "- **Backend:** \`${{ env.REGISTRY }}/${{ env.IMAGE_NAME_BACKEND }}:${{ github.event.inputs.version }}\`" >> $GITHUB_STEP_SUMMARY
           echo "- **Frontend:** \`${{ env.REGISTRY }}/${{ env.IMAGE_NAME_FRONTEND }}:${{ github.event.inputs.version }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **Robot (ROS2):** \`${{ env.REGISTRY }}/${{ env.IMAGE_NAME_ROBOT }}:${{ github.event.inputs.version }}\`" >> $GITHUB_STEP_SUMMARY
           
           if [ "${{ env.KUBE_ACCESS }}" == "true" ]; then
             echo "" >> $GITHUB_STEP_SUMMARY
