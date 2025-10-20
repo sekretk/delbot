@@ -1,5 +1,5 @@
 # Multi-stage build for NestJS Backend
-FROM node:24 AS builder
+FROM node:25 AS builder
 WORKDIR /app
 
 # Install build dependencies for native modules
@@ -27,7 +27,7 @@ COPY . .
 RUN npx nx build backend --prod
 
 # Production runtime stage - minimal
-FROM node:24-alpine AS production
+FROM node:25-alpine AS production
 WORKDIR /app
 
 # Install dumb-init for proper signal handling
