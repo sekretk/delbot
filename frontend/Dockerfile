@@ -1,5 +1,5 @@
 # Multi-stage build for React Frontend
-FROM node:24-alpine AS builder
+FROM node:25-alpine AS builder
 WORKDIR /app
 
 # Install build dependencies for native modules in Alpine
